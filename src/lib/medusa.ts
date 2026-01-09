@@ -125,8 +125,8 @@ export async function getProductsByCollection(collectionId: string, regionId?: s
 }
 
 // Cart Operations
-// Fields needed to get line item thumbnails and product info
-const CART_FIELDS = "+items,+items.variant,+items.variant.images,+items.product,+items.product.images,+items.thumbnail";
+// Medusa v2 fields selection - use * to select all fields + relations
+const CART_FIELDS = "*items,*items.variant,*items.variant.product,*items.product,*items.variant.product.images,*items.thumbnail";
 
 export async function createCart(regionId: string) {
   try {
@@ -155,42 +155,45 @@ export async function getCart(cartId: string) {
 
 export async function addToCart(cartId: string, variantId: string, quantity: number = 1) {
   try {
+    // Correct param order: cartId, body, query, headers
     const { cart } = await sdk.store.cart.createLineItem(cartId, {
       variant_id: variantId,
       quantity,
-    }, {}, {
+    }, {
       fields: CART_FIELDS,
     });
     return cart;
   } catch (error) {
     console.error("Error adding to cart:", error);
-    return null;
+    throw error; // Throw error so UI can handle it
   }
 }
 
 export async function updateCartItem(cartId: string, lineItemId: string, quantity: number) {
   try {
+    // Correct param order: cartId, lineItemId, body, query, headers
     const { cart } = await sdk.store.cart.updateLineItem(cartId, lineItemId, {
       quantity,
-    }, {}, {
+    }, {
       fields: CART_FIELDS,
     });
     return cart;
   } catch (error) {
     console.error("Error updating cart item:", error);
-    return null;
+    throw error;
   }
 }
 
 export async function removeFromCart(cartId: string, lineItemId: string) {
   try {
-    const { parent: cart } = await sdk.store.cart.deleteLineItem(cartId, lineItemId, {}, {
+    // Correct param order: cartId, lineItemId, query, headers
+    const { cart } = await sdk.store.cart.deleteLineItem(cartId, lineItemId, {
       fields: CART_FIELDS,
     });
     return cart;
   } catch (error) {
     console.error("Error removing from cart:", error);
-    return null;
+    throw error;
   }
 }
 

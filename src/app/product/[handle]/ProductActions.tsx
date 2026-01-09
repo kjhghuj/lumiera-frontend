@@ -124,6 +124,9 @@ export default function ProductActions({ product, onVariantChange }: ProductActi
       await addItem(selectedVariant.id, quantity);
       setJustAdded(true);
       setTimeout(() => setJustAdded(false), 2000);
+    } catch (error: any) {
+      console.error("Failed to add to cart:", error);
+      alert(`Failed to add to cart: ${error.message || "Unknown error"}`);
     } finally {
       setIsAdding(false);
     }

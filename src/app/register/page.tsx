@@ -10,8 +10,7 @@ const API_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "";
 export default function RegisterPage() {
     const router = useRouter();
     const [formData, setFormData] = useState({
-        firstName: "",
-        lastName: "",
+        fullName: "",
         email: "",
         password: "",
         confirmPassword: "",
@@ -70,6 +69,11 @@ export default function RegisterPage() {
             const token = authData.token;
 
             // Step 2: Create customer profile
+            // Split full name
+            const names = formData.fullName.trim().split(' ');
+            const firstName = names[0];
+            const lastName = names.slice(1).join(' ') || "";
+
             const customerResponse = await fetch(`${BACKEND_URL}/store/customers`, {
                 method: "POST",
                 headers: {
@@ -79,8 +83,8 @@ export default function RegisterPage() {
                 },
                 credentials: "include",
                 body: JSON.stringify({
-                    first_name: formData.firstName,
-                    last_name: formData.lastName,
+                    first_name: firstName,
+                    last_name: lastName,
                     email: formData.email,
                 }),
             });
@@ -91,9 +95,12 @@ export default function RegisterPage() {
             }
 
             // Success!
+            // Store token for auto-login
+            localStorage.setItem("medusa_auth_token", token);
+
             setSuccess(true);
             setTimeout(() => {
-                router.push("/account?registered=true");
+                router.push("/account");
             }, 1500);
 
         } catch (err: any) {
@@ -133,33 +140,18 @@ export default function RegisterPage() {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">
-                                    First Name
-                                </label>
-                                <input
-                                    type="text"
-                                    name="firstName"
-                                    value={formData.firstName}
-                                    onChange={handleChange}
-                                    className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-charcoal"
-                                    required
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">
-                                    Last Name
-                                </label>
-                                <input
-                                    type="text"
-                                    name="lastName"
-                                    value={formData.lastName}
-                                    onChange={handleChange}
-                                    className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-charcoal"
-                                    required
-                                />
-                            </div>
+                        <div>
+                            <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">
+                                Full Name
+                            </label>
+                            <input
+                                type="text"
+                                name="fullName"
+                                value={formData.fullName}
+                                onChange={handleChange}
+                                className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-charcoal"
+                                required
+                            />
                         </div>
 
                         <div>

@@ -531,6 +531,38 @@ export default function AccountPage() {
         {savingProfile && <Loader2 className="w-4 h-4 animate-spin" />}
         {savingProfile ? "Saving..." : "Save Changes"}
       </button>
+
+      {/* DEV ONLY: Test Email Button */}
+      {process.env.NODE_ENV === "development" && (
+        <div className="mt-8 pt-8 border-t border-gray-100">
+          <h3 className="text-sm font-semibold text-charcoal mb-4">[DEV] Test Tools</h3>
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch(`${BACKEND_URL}/store/test-email`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "x-publishable-api-key": API_KEY
+                  },
+                  body: JSON.stringify({
+                    email: customer?.email,
+                    first_name: firstName,
+                    last_name: lastName
+                  })
+                });
+                const data = await res.json();
+                alert(res.ok ? "Email sent!" : "Failed: " + data.message);
+              } catch (e) {
+                alert("Error sending email: " + e);
+              }
+            }}
+            className="bg-gray-200 text-charcoal px-4 py-2 text-xs font-bold uppercase tracking-widest hover:bg-gray-300"
+          >
+            Send Test Welcome Email
+          </button>
+        </div>
+      )}
     </div>
   );
 
