@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* LUMIERA Brand Colors & Theme */
+@theme inline {
+  /* Brand Colors */
+  --color-cream: #FAF9F7;
+  --color-charcoal: #2C2C2C;
+  --color-charcoal-light: #6B6B6B;
+  --color-terracotta: #B08B7D;
+  --color-terracotta-dark: #96746A;
+  --color-sage: #7F8C72;
+  --color-border: #E8E6E3;
+  
+  /* Semantic Colors */
+  --color-background: var(--color-cream);
+  --color-foreground: var(--color-charcoal);
+  
+  /* Fonts */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Georgia', 'Times New Roman', serif;
+}
+
+:root {
+  --background: #FAF9F7;
+  --foreground: #2C2C2C;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-cream);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-charcoal-light);
+}
+
+/* Hide scrollbar for horizontal scroll areas */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Animation utilities */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}

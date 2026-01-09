@@ -1,0 +1,8 @@
+<svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="800" fill="#E8F0E8"/>
+  <rect x="350" y="200" width="100" height="400" rx="50" fill="#A8C4A8" opacity="0.4"/>
+  <circle cx="400" cy="200" r="60" fill="#A8C4A8" opacity="0.5"/>
+  <path d="M 380 600 L 380 650 M 420 600 L 420 650" stroke="#A8C4A8" stroke-width="3" opacity="0.4"/>
+  <text x="400" y="580" font-family="Georgia, serif" font-size="24" fill="#6B7F6B" text-anchor="middle" opacity="0.7">THE WAND</text>
+  <text x="400" y="610" font-family="Arial, sans-serif" font-size="14" fill="#6B7F6B" text-anchor="middle" opacity="0.5">Deep Tissue Massager</text>
+</svg>
