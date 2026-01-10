@@ -15,8 +15,30 @@ import {
   updateCartItem,
   removeFromCart,
   getRegion,
+  applyPromoCode,
+  removePromoCode,
+  applyBetterCoupon as applyBetterCouponAPI, // Assuming this is the API function
 } from "@/lib/medusa";
-import { StoreCart, StoreRegion, CartContextType, RegionContextType } from "@/lib/types";
+import { StoreCart, StoreRegion } from "@/lib/types";
+
+// Define CartContextType directly in this file as per instruction
+interface CartContextType {
+  cart: StoreCart | null;
+  cartLoading: boolean;
+  cartCount: number;
+  addItem: (variantId: string, quantity?: number) => Promise<void>;
+  updateItem: (lineItemId: string, quantity: number) => Promise<void>;
+  removeItem: (lineItemId: string) => Promise<void>;
+  refreshCart: () => Promise<void>;
+  applyPromoCode: (code: string) => Promise<boolean>;
+  removePromoCode: (code: string) => Promise<boolean>;
+  applyBetterCoupon: (code: string) => Promise<{ success: boolean; message: string }>;
+}
+
+interface RegionContextType {
+  region: StoreRegion | null;
+  regionLoading: boolean;
+}
 
 // Cart Context
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -58,24 +80,35 @@ export function Providers({ children }: ProvidersProps) {
 
       try {
         const storedCartId = localStorage.getItem(CART_ID_KEY);
+        console.log("[initCart] Stored cart ID:", storedCartId);
 
         if (storedCartId) {
           const existingCart = await getCart(storedCartId);
-          if (existingCart && existingCart.completed_at === null) {
+          console.log("[initCart] Existing cart result:", existingCart?.id, "completed_at:", existingCart?.completed_at);
+
+          // Use falsy check (!completed_at) instead of === null because it may be undefined
+          if (existingCart && !existingCart.completed_at) {
+            console.log("[initCart] Using existing cart with", existingCart.items?.length || 0, "items");
             setCart(existingCart);
             setCartLoading(false);
             return;
           }
+
+          // Cart doesn't exist or is completed, clear the stored ID
+          console.log("[initCart] Clearing invalid cart ID");
+          localStorage.removeItem(CART_ID_KEY);
         }
 
         // Create new cart
+        console.log("[initCart] Creating new cart for region:", region.id);
         const newCart = await createCart(region.id);
         if (newCart) {
+          console.log("[initCart] New cart created:", newCart.id);
           localStorage.setItem(CART_ID_KEY, newCart.id);
           setCart(newCart);
         }
       } catch (error) {
-        console.error("Failed to initialize cart:", error);
+        console.error("[initCart] Failed to initialize cart:", error);
       } finally {
         setCartLoading(false);
       }
@@ -142,6 +175,96 @@ export function Providers({ children }: ProvidersProps) {
     [cart?.id]
   );
 
+  const applyPromoCodeHandler = useCallback(
+    async (code: string): Promise<boolean> => {
+      if (!cart?.id) return false;
+      setCartLoading(true);
+      try {
+        const updatedCart = await applyPromoCode(cart.id, code);
+        if (updatedCart) {
+          setCart(updatedCart);
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error("Failed to apply promo code:", error);
+        throw error;
+      } finally {
+        setCartLoading(false);
+      }
+    },
+    [cart?.id]
+  );
+
+  const removePromoCodeHandler = useCallback(
+    async (code: string): Promise<boolean> => {
+      if (!cart?.id) return false;
+      setCartLoading(true);
+      try {
+        const updatedCart = await removePromoCode(cart.id, code);
+        if (updatedCart) {
+          setCart(updatedCart);
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error("Failed to remove promo code:", error);
+        throw error;
+      } finally {
+        setCartLoading(false);
+      }
+    },
+    [cart?.id]
+  );
+
+  const applyBetterCouponHandler = useCallback(
+    async (code: string): Promise<{ success: boolean; message: string }> => {
+      if (!cart?.id) return { success: false, message: "Cart not found" };
+
+      setCartLoading(true);
+      try {
+        // 1. Get current discount amount
+        const currentDiscount = cart.discount_total || 0;
+        const currentCodes = (cart as any).promotions?.map((p: any) => p.code) || [];
+
+        // 2. Apply new coupon (check if better)
+        console.log("[SmartCoupon] Testing code:", code, "Current discount:", currentDiscount);
+
+        const updatedCart = await applyPromoCode(cart.id, code);
+
+        if (!updatedCart) {
+          return { success: false, message: "Invalid promo code" };
+        }
+
+        const newDiscount = updatedCart.discount_total || 0;
+        console.log("[SmartCoupon] New discount:", newDiscount);
+
+        // 3. Compare discounts
+        if (newDiscount > currentDiscount) {
+          // Keep the new state
+          setCart(updatedCart);
+          return { success: true, message: "Applied better coupon!" };
+        } else {
+          // Revert: remove the newly applied code
+          console.log("[SmartCoupon] New code not better. Reverting.");
+          await removePromoCode(cart.id, code);
+          // Fetch cart again to ensure clean state
+          const revertedCart = await getCart(cart.id);
+          if (revertedCart) setCart(revertedCart);
+
+          return { success: false, message: "Current coupon offers better or equal discount." };
+        }
+
+      } catch (error: any) {
+        console.error("Failed to apply smart coupon:", error);
+        return { success: false, message: error.message || "Failed to check coupon" };
+      } finally {
+        setCartLoading(false);
+      }
+    },
+    [cart?.id, cart?.discount_total]
+  );
+
   const cartCount = cart?.items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
 
   return (
@@ -155,6 +278,9 @@ export function Providers({ children }: ProvidersProps) {
           updateItem,
           removeItem,
           refreshCart,
+          applyPromoCode: applyPromoCodeHandler,
+          removePromoCode: removePromoCodeHandler,
+          applyBetterCoupon: applyBetterCouponHandler,
         }}
       >
         {children}

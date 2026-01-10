@@ -303,11 +303,295 @@ function CartLoading() {
   );
 }
 
+// Coupon/Ticket Icon
+function CouponIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 0 1 0 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 0 1 0-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375Z" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+// Helper to calculate discount amount for a specific promo code
+function getDiscountForCode(cart: any, code: string): number {
+  if (!cart?.promotions || !cart?.items) return 0;
+
+  // Find the promotion ID for this code
+  const promotion = cart.promotions.find((p: any) => p.code === code);
+  if (!promotion) return 0;
+
+  // Sum up adjustments for this promotion across all items
+  let totalDiscount = 0;
+
+  cart.items.forEach((item: any) => {
+    if (item.adjustments) {
+      item.adjustments.forEach((adj: any) => {
+        if (adj.promotion_id === promotion.id) {
+          totalDiscount += adj.amount;
+        }
+      });
+    }
+  });
+
+  return totalDiscount;
+}
+
+// Coupon Section Component
+function CouponSection({
+  cart,
+  appliedCodes,
+  currencyCode,
+  onApplyCode,
+  onRemoveCode,
+  isLoading
+}: {
+  cart: any;
+  appliedCodes: string[];
+  currencyCode: string;
+  onApplyCode: (code: string) => Promise<{ success: boolean; message: string }>;
+  onRemoveCode: (code: string) => Promise<void>;
+  isLoading: boolean;
+}) {
+  const [showModal, setShowModal] = useState(false);
+  const [inputCode, setInputCode] = useState("");
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [applying, setApplying] = useState(false);
+
+  const handleApply = async () => {
+    if (!inputCode.trim()) return;
+    setMessage(null);
+    setApplying(true);
+    try {
+      const result = await onApplyCode(inputCode.trim().toUpperCase());
+      if (result.success) {
+        setInputCode("");
+        setMessage({ text: result.message, type: 'success' });
+      } else {
+        setMessage({ text: result.message, type: 'info' });
+      }
+    } catch (err: any) {
+      setMessage({ text: err.message || "Invalid promo code", type: 'error' });
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleApply();
+    }
+  };
+
+  return (
+    <>
+      <div className="bg-cream rounded-xl p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <CouponIcon />
+          <span className="font-medium text-charcoal">Promo Code</span>
+        </div>
+
+        {/* Applied Codes */}
+        {appliedCodes.length > 0 && (
+          <div className="space-y-2 mb-3">
+            {appliedCodes.map((code) => {
+              const discountAmount = getDiscountForCode(cart, code);
+              return (
+                <div key={code} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-terracotta/30">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono bg-terracotta/10 text-terracotta px-2 py-0.5 rounded">
+                      {code}
+                    </span>
+                    {discountAmount > 0 && (
+                      <span className="text-sm text-green-600 font-medium">
+                        -{formatPrice(discountAmount, currencyCode)}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => onRemoveCode(code)}
+                    disabled={isLoading}
+                    className="text-charcoal-light hover:text-terracotta transition-colors disabled:opacity-50"
+                    aria-label="Remove promo code"
+                  >
+                    <CloseIcon />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Input Field */}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={inputCode}
+            onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+            onKeyDown={handleKeyDown}
+            placeholder="Enter promo code"
+            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta uppercase font-mono"
+            disabled={applying || isLoading}
+          />
+          <button
+            onClick={handleApply}
+            disabled={!inputCode.trim() || applying || isLoading}
+            className="px-4 py-2 bg-charcoal text-white text-sm rounded-lg hover:bg-charcoal-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {applying ? <LoadingSpinner /> : "Apply"}
+          </button>
+        </div>
+
+        {/* Feedback Message */}
+        {message && (
+          <p className={`text-sm mt-2 ${message.type === 'success' ? 'text-green-600' :
+            message.type === 'error' ? 'text-red-500' : 'text-blue-600'
+            }`}>
+            {message.text}
+          </p>
+        )}
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <CouponModal
+          onClose={() => setShowModal(false)}
+          onApplyCode={onApplyCode}
+          appliedCodes={appliedCodes}
+        />
+      )}
+    </>
+  );
+}
+
+// Coupon Modal Component
+function CouponModal({
+  onClose,
+  onApplyCode,
+  appliedCodes
+}: {
+  onClose: () => void;
+  onApplyCode: (code: string) => Promise<{ success: boolean; message: string }>;
+  appliedCodes: string[];
+}) {
+  const [inputCode, setInputCode] = useState("");
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [applying, setApplying] = useState(false);
+
+  const handleApply = async () => {
+    if (!inputCode.trim()) return;
+    setMessage(null);
+    setApplying(true);
+    try {
+      const result = await onApplyCode(inputCode.trim().toUpperCase());
+      if (result.success) {
+        setInputCode("");
+        setMessage({ text: result.message, type: 'success' });
+        // Optional: close modal on success after short delay?
+        // Timeout to let user see success message
+        setTimeout(onClose, 1500);
+      } else {
+        setMessage({ text: result.message, type: 'info' });
+      }
+    } catch (err: any) {
+      setMessage({ text: err.message || "Invalid promo code", type: 'error' });
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[80vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="font-serif text-xl text-charcoal">Enter Promo Code</h3>
+          <button
+            onClick={onClose}
+            className="text-charcoal-light hover:text-charcoal transition-colors"
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        {/* Input */}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-charcoal-light mb-2">
+              Promo Code
+            </label>
+            <input
+              type="text"
+              value={inputCode}
+              onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+              placeholder="Enter your code here"
+              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta uppercase font-mono text-lg"
+              disabled={applying}
+              autoFocus
+            />
+          </div>
+
+          {message && (
+            <p className={`text-sm ${message.type === 'success' ? 'text-green-600' :
+                message.type === 'error' ? 'text-red-500' : 'text-blue-600'
+              }`}>
+              {message.text}
+            </p>
+          )}
+
+          {appliedCodes.length > 0 && (
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-xs text-charcoal-light mb-2">Currently applied:</p>
+              <div className="flex flex-wrap gap-2">
+                {appliedCodes.map((code) => (
+                  <span key={code} className="text-xs font-mono bg-terracotta/10 text-terracotta px-2 py-1 rounded">
+                    {code}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={handleApply}
+            disabled={!inputCode.trim() || applying}
+            className="w-full py-3 bg-terracotta text-white rounded-full hover:bg-terracotta-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
+          >
+            {applying ? (
+              <>
+                <LoadingSpinner />
+                Applying...
+              </>
+            ) : (
+              "Apply Code"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Order Summary Component
 function OrderSummary({
   subtotal,
   shipping,
   tax,
+  discount,
   total,
   currencyCode,
   itemCount,
@@ -316,6 +600,7 @@ function OrderSummary({
   subtotal: number;
   shipping: number | null;
   tax: number;
+  discount: number;
   total: number;
   currencyCode: string;
   itemCount: number;
@@ -336,6 +621,15 @@ function OrderSummary({
             {formatPrice(subtotal, currencyCode)}
           </span>
         </div>
+
+        {discount > 0 && (
+          <div className="flex justify-between text-green-600">
+            <span>Discount</span>
+            <span className="font-medium">
+              -{formatPrice(discount, currencyCode)}
+            </span>
+          </div>
+        )}
 
         <div className="flex justify-between">
           <span className="text-charcoal-light">Shipping</span>
@@ -413,9 +707,10 @@ function OrderSummary({
 
 // Main Cart Page Component
 export default function CartPage() {
-  const { cart, cartLoading, cartCount, updateItem, removeItem } = useCart();
+  const { cart, cartLoading, cartCount, updateItem, removeItem, applyBetterCoupon, removePromoCode } = useCart();
   const { region } = useRegion();
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
 
   const currencyCode = cart?.currency_code?.toUpperCase() || region?.currency_code?.toUpperCase() || "GBP";
 
@@ -438,11 +733,34 @@ export default function CartPage() {
     }
   };
 
+  const handleApplyPromoCode = async (code: string) => {
+    setPromoLoading(true);
+    try {
+      // Use the smart "better coupon" logic instead of basic apply
+      return await applyBetterCoupon(code);
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleRemovePromoCode = async (code: string) => {
+    setPromoLoading(true);
+    try {
+      await removePromoCode(code);
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
   // Calculate totals
   const subtotal = cart?.item_subtotal || 0;
   const shipping = cart?.shipping_total || null;
   const tax = cart?.tax_total || 0;
+  const discount = cart?.discount_total || 0;
   const total = cart?.total || subtotal;
+
+  // Get applied promo codes from cart
+  const appliedCodes: string[] = (cart as any)?.promotions?.map((p: any) => p.code) || [];
 
   return (
     <div className="pt-24 pb-16 min-h-screen bg-white">
@@ -486,12 +804,25 @@ export default function CartPage() {
                 ))}
               </div>
 
+              {/* Coupon Section - Mobile Only (Below items) */}
+              <div className="lg:hidden mt-6">
+                <CouponSection
+                  cart={cart}
+                  appliedCodes={appliedCodes}
+                  currencyCode={currencyCode}
+                  onApplyCode={handleApplyPromoCode}
+                  onRemoveCode={handleRemovePromoCode}
+                  isLoading={promoLoading}
+                />
+              </div>
+
               {/* Mobile Order Summary Trigger */}
-              <div className="lg:hidden mt-8">
+              <div className="lg:hidden mt-4">
                 <OrderSummary
                   subtotal={subtotal}
                   shipping={shipping}
                   tax={tax}
+                  discount={discount}
                   total={total}
                   currencyCode={currencyCode}
                   itemCount={cartCount}
@@ -500,12 +831,23 @@ export default function CartPage() {
               </div>
             </div>
 
-            {/* Desktop Order Summary */}
-            <div className="hidden lg:block">
+            {/* Desktop Order Summary & Coupon (Right Sidebar) */}
+            <div className="hidden lg:block space-y-8">
+              {/* Coupon Section - Desktop Only (Above Summary) */}
+              <CouponSection
+                cart={cart}
+                appliedCodes={appliedCodes}
+                currencyCode={currencyCode}
+                onApplyCode={handleApplyPromoCode}
+                onRemoveCode={handleRemovePromoCode}
+                isLoading={promoLoading}
+              />
+
               <OrderSummary
                 subtotal={subtotal}
                 shipping={shipping}
                 tax={tax}
+                discount={discount}
                 total={total}
                 currencyCode={currencyCode}
                 itemCount={cartCount}

@@ -34,7 +34,8 @@ export async function getProducts(regionId?: string, limit: number = 100) {
     const { products, count } = await sdk.store.product.list({
       limit,
       region_id: regionId,
-      fields: "*variants.calculated_price,*categories,*images",
+      sales_channel_id: SALES_CHANNEL_ID || undefined,
+      fields: "*variants.calculated_price,*variants.inventory_quantity,*categories,*images",
     });
     return { products, count };
   } catch (error) {
@@ -48,8 +49,10 @@ export async function getProductByHandle(handle: string, regionId?: string) {
     const { products } = await sdk.store.product.list({
       handle,
       region_id: regionId,
+      sales_channel_id: SALES_CHANNEL_ID || undefined,
       // Include *variants.images to get variant-specific images for gallery switching
-      fields: "*variants.calculated_price,*variants.options,*variants.images,*variants.thumbnail,*images,*categories,*tags",
+      // Include inventory_quantity to check stock availability
+      fields: "*variants,*variants.calculated_price,*variants.options,*variants.images,*variants.thumbnail,*variants.inventory_quantity,*images,*categories,*tags",
     });
     return products?.[0] || null;
   } catch (error) {
@@ -62,8 +65,9 @@ export async function getProductById(id: string, regionId?: string) {
   try {
     const { product } = await sdk.store.product.retrieve(id, {
       region_id: regionId,
+      sales_channel_id: SALES_CHANNEL_ID || undefined,
       // Include *variants.images to get variant-specific images
-      fields: "*variants.calculated_price,*variants.options,*variants.images,*images,*categories,*tags",
+      fields: "*variants.calculated_price,*variants.options,*variants.images,*variants.inventory_quantity,*images,*categories,*tags",
     });
     return product;
   } catch (error) {
@@ -90,7 +94,8 @@ export async function getProductsByCategory(categoryId: string, regionId?: strin
     const { products } = await sdk.store.product.list({
       category_id: [categoryId],
       region_id: regionId,
-      fields: "*variants.calculated_price,*images,*categories",
+      sales_channel_id: SALES_CHANNEL_ID || undefined,
+      fields: "*variants.calculated_price,*variants.inventory_quantity,*images,*categories",
     });
     return products || [];
   } catch (error) {
@@ -115,7 +120,8 @@ export async function getProductsByCollection(collectionId: string, regionId?: s
     const { products } = await sdk.store.product.list({
       collection_id: [collectionId],
       region_id: regionId,
-      fields: "*variants.calculated_price,*images,*categories",
+      sales_channel_id: SALES_CHANNEL_ID || undefined,
+      fields: "*variants.calculated_price,*variants.inventory_quantity,*images,*categories",
     });
     return products || [];
   } catch (error) {
@@ -126,7 +132,7 @@ export async function getProductsByCollection(collectionId: string, regionId?: s
 
 // Cart Operations
 // Medusa v2 fields selection - use * to select all fields + relations
-const CART_FIELDS = "*items,*items.variant,*items.variant.product,*items.product,*items.variant.product.images,*items.thumbnail";
+const CART_FIELDS = "*items,*items.variant,*items.variant.product,*items.product,*items.variant.product.images,*items.thumbnail,*items.adjustments";
 
 export async function createCart(regionId: string) {
   try {
@@ -144,10 +150,16 @@ export async function createCart(regionId: string) {
 export async function getCart(cartId: string) {
   try {
     const { cart } = await sdk.store.cart.retrieve(cartId, {
-      fields: CART_FIELDS,
+      fields: CART_FIELDS + ",*promotions",
     });
+    console.log("[getCart] Retrieved cart:", cartId, "items:", cart?.items?.length || 0);
     return cart;
-  } catch (error) {
+  } catch (error: any) {
+    // If cart doesn't exist (404), return null instead of throwing
+    if (error?.status === 404 || error?.message?.includes("not found")) {
+      console.log("[getCart] Cart not found:", cartId);
+      return null;
+    }
     console.error("Error fetching cart:", error);
     return null;
   }
@@ -186,13 +198,88 @@ export async function updateCartItem(cartId: string, lineItemId: string, quantit
 
 export async function removeFromCart(cartId: string, lineItemId: string) {
   try {
-    // Correct param order: cartId, lineItemId, query, headers
-    const { cart } = await sdk.store.cart.deleteLineItem(cartId, lineItemId, {
+    // Medusa v2 deleteLineItem returns { deleted: true, id, object, parent: cart }
+    // We need to extract the cart from the 'parent' field
+    const response = await sdk.store.cart.deleteLineItem(cartId, lineItemId, {
       fields: CART_FIELDS,
-    });
+    }) as any;
+
+    // Handle both possible response formats:
+    // - Medusa v2 format: { deleted: true, parent: cart }
+    // - Alternative format: { cart }
+    const cart = response.parent || response.cart;
     return cart;
   } catch (error) {
     console.error("Error removing from cart:", error);
+    throw error;
+  }
+}
+
+// Promotion Code Operations
+export async function applyPromoCode(cartId: string, code: string) {
+  try {
+    console.log("[applyPromoCode] Applying code:", code, "to cart:", cartId);
+
+    // Medusa v2 uses POST /store/carts/{id}/promotions with promo_codes array
+    const response = await fetch(`${MEDUSA_BACKEND_URL}/store/carts/${cartId}/promotions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-publishable-api-key": PUBLISHABLE_API_KEY,
+      },
+      body: JSON.stringify({
+        promo_codes: [code],
+      }),
+    });
+
+    console.log("[applyPromoCode] Response status:", response.status);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("[applyPromoCode] Error response:", errorData);
+      throw new Error(errorData.message || "Failed to apply promo code");
+    }
+
+    // After applying promo code, fetch the full cart with all fields
+    const fullCart = await getCart(cartId);
+    console.log("[applyPromoCode] Success, promotions:", fullCart?.promotions?.length || 0);
+    return fullCart;
+  } catch (error) {
+    console.error("[applyPromoCode] Error:", error);
+    throw error;
+  }
+}
+
+export async function removePromoCode(cartId: string, code: string) {
+  try {
+    console.log("[removePromoCode] Removing code:", code, "from cart:", cartId);
+
+    // Medusa v2 uses DELETE /store/carts/{id}/promotions with promo_codes array
+    const response = await fetch(`${MEDUSA_BACKEND_URL}/store/carts/${cartId}/promotions`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "x-publishable-api-key": PUBLISHABLE_API_KEY,
+      },
+      body: JSON.stringify({
+        promo_codes: [code],
+      }),
+    });
+
+    console.log("[removePromoCode] Response status:", response.status);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("[removePromoCode] Error response:", errorData);
+      throw new Error(errorData.message || "Failed to remove promo code");
+    }
+
+    // After removing promo code, fetch the full cart with all fields
+    const fullCart = await getCart(cartId);
+    console.log("[removePromoCode] Success, promotions:", fullCart?.promotions?.length || 0);
+    return fullCart;
+  } catch (error) {
+    console.error("[removePromoCode] Error:", error);
     throw error;
   }
 }
@@ -341,7 +428,8 @@ export async function searchProducts(query: string, regionId?: string) {
     const { products } = await sdk.store.product.list({
       q: query,
       region_id: regionId,
-      fields: "*variants.calculated_price,*images,*categories",
+      sales_channel_id: SALES_CHANNEL_ID || undefined,
+      fields: "*variants.calculated_price,*variants.inventory_quantity,*images,*categories",
     });
     return products || [];
   } catch (error) {

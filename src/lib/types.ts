@@ -48,6 +48,8 @@ export interface CartContextType {
   updateItem: (lineItemId: string, quantity: number) => Promise<void>;
   removeItem: (lineItemId: string) => Promise<void>;
   refreshCart: () => Promise<void>;
+  applyPromoCode: (code: string) => Promise<boolean>;
+  removePromoCode: (code: string) => Promise<boolean>;
 }
 
 // Region Context Types

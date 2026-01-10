@@ -107,11 +107,19 @@ export default function ProductActions({ product, onVariantChange }: ProductActi
     }
   }, [selectedVariant, onVariantChange]);
 
-  // Since we cannot query inventory_quantity without sales_channel_id,
-  // we assume products are in stock unless explicitly marked otherwise
-  // In a production environment, you would configure a single sales channel
-  // or pass sales_channel_id to the inventory query
-  const isInStock = !selectedVariant?.manage_inventory || selectedVariant?.inventory_quantity !== 0;
+  const isInStock = useMemo(() => {
+    if (!selectedVariant) return false;
+
+    // If inventory is not managed, it's always in stock
+    if (!selectedVariant.manage_inventory) return true;
+
+    // If backorders are allowed, it's in stock
+    if (selectedVariant.allow_backorder) return true;
+
+    // Otherwise, strictly check if inventory quantity is available and > 0
+    // If inventory_quantity is undefined/null (e.g. missing link), this treats it as 0 (Out of Stock)
+    return (selectedVariant.inventory_quantity || 0) > 0;
+  }, [selectedVariant]);
 
   const handleOptionChange = (optionId: string, value: string) => {
     setSelectedOptions(prev => ({ ...prev, [optionId]: value }));
