@@ -412,6 +412,7 @@ export async function updateCustomerProfile(data: {
   first_name?: string;
   last_name?: string;
   phone?: string;
+  metadata?: Record<string, any>;
 }) {
   try {
     const { customer } = await sdk.store.customer.update(data);

@@ -223,12 +223,11 @@ export function Providers({ children }: ProvidersProps) {
 
       setCartLoading(true);
       try {
-        // 1. Get current discount amount
-        const currentDiscount = cart.discount_total || 0;
-        const currentCodes = (cart as any).promotions?.map((p: any) => p.code) || [];
+        // 1. Get current total
+        const currentTotal = cart.total || 0;
 
         // 2. Apply new coupon (check if better)
-        console.log("[SmartCoupon] Testing code:", code, "Current discount:", currentDiscount);
+        console.log("[SmartCoupon] Testing code:", code, "Current Total:", currentTotal);
 
         const updatedCart = await applyPromoCode(cart.id, code);
 
@@ -236,14 +235,20 @@ export function Providers({ children }: ProvidersProps) {
           return { success: false, message: "Invalid promo code" };
         }
 
-        const newDiscount = updatedCart.discount_total || 0;
-        console.log("[SmartCoupon] New discount:", newDiscount);
+        const newTotal = updatedCart.total || 0;
+        console.log("[SmartCoupon] New Total:", newTotal);
 
-        // 3. Compare discounts
-        if (newDiscount > currentDiscount) {
+        // 3. Compare totals (Lower is better)
+        // If new total is LOWER than current total, it's a better deal.
+        // OR if new total is same but we didn't have a discount before? 
+        // Actually, if total is same, we assume no benefit. Revert to keep previous state/code.
+        // UNLESS the previous state had NO code?
+        // Let's stick to strict improvement: New Total < Current Total
+
+        if (newTotal < currentTotal) {
           // Keep the new state
           setCart(updatedCart);
-          return { success: true, message: "Applied better coupon!" };
+          return { success: true, message: "Coupon applied successfully!" };
         } else {
           // Revert: remove the newly applied code
           console.log("[SmartCoupon] New code not better. Reverting.");
@@ -252,7 +257,10 @@ export function Providers({ children }: ProvidersProps) {
           const revertedCart = await getCart(cart.id);
           if (revertedCart) setCart(revertedCart);
 
-          return { success: false, message: "Current coupon offers better or equal discount." };
+          if (newTotal === currentTotal) {
+            return { success: false, message: "This coupon does not provide any additional discount." };
+          }
+          return { success: false, message: "Current coupon offers a better deal." };
         }
 
       } catch (error: any) {
@@ -262,7 +270,7 @@ export function Providers({ children }: ProvidersProps) {
         setCartLoading(false);
       }
     },
-    [cart?.id, cart?.discount_total]
+    [cart?.id, cart?.total]
   );
 
   const cartCount = cart?.items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
