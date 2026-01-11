@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Add to Cart</title>
+    <script>
+        // Simulate cart data
+        const testCartData = {
+            id: "cart_test_12345",
+            items: [
+                {
+                    id: "item_1",
+                    product_id: "prod_1",
+                    title: "Test Product 1",
+                    variant: { id: "var_1", title: "Test Variant 1", calculated_price: { calculated_amount: 5000 } },
+                    quantity: 1,
+                    unit_price: 5000,
+                    total: 5000
+                },
+                {
+                    id: "item_2", 
+                    product_id: "prod_2",
+                    title: "Test Product 2",
+                    variant: { id: "var_2", title: "Test Variant 2", calculated_price: { calculated_amount: 10000 } },
+                    quantity: 1,
+                    unit_price: 10000,
+                    total: 10000
+                }
+            ],
+            subtotal: 15000,
+            total: 15000,
+            currency_code: "GBP"
+        };
+
+        // Function to get cart ID from localStorage
+        function getCartId() {
+            return localStorage.getItem('lumiera_cart_id');
+        }
+
+        // Function to set cart ID
+        function setCartId(cartId) {
+            localStorage.setItem('lumiera_cart_id', cartId);
+        console.log('Cart ID set:', cartId);
+        alert('Cart ID set to: ' + cartId);
+        }
+
+        // Function to add item to cart via API
+        async function addToCartAPI(variantId, quantity) {
+            const cartId = getCartId();
+            if (!cartId) {
+                alert('No cart ID found. Please navigate to cart page first.');
+                return;
+            }
+
+            const apiUrl = 'http://localhost:9000/store/carts/' + cartId + '/line-items';
+            console.log('Adding to cart:', apiUrl, 'variantId:', variantId, 'quantity:', quantity);
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-publishable-api-key': 'pk_e7a96225f3cb0f9362f8391a9aa4d922e4d599076a08028f3b4bb3bf69fb0b'
+                    },
+                    body: JSON.stringify({
+                        variant_id: variantId,
+                        quantity: quantity
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('Add to cart error:', errorData);
+                    alert('Failed to add item: ' + (errorData.message || errorData.error));
+                    return;
+                }
+
+                const data = await response.json();
+                console.log('Add to cart success:', data);
+                alert('Successfully added to cart! Check cart page.');
+                return data;
+            } catch (error) {
+                console.error('Add to cart error:', error);
+                alert('Error adding to cart: ' + error.message);
+            }
+        }
+
+        // Function to refresh cart
+        async function refreshCart() {
+            const cartId = getCartId();
+            if (!cartId) return;
+
+            const apiUrl = 'http://localhost:9000/store/carts/' + cartId;
+            console.log('Refreshing cart:', apiUrl);
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-publishable-api-key': 'pk_e7a96225f3cb0f9362f8391a9aa4d922e4d599076a08028f3b4bb3bf69fb0b'
+                    }
+                });
+
+                const data = await response.json();
+                console.log('Cart refreshed:', data);
+                return data;
+            } catch (error) {
+                console.error('Refresh cart error:', error);
+            }
+        }
+
+        // Function to remove item from cart
+        async function removeFromCartAPI(lineItemId) {
+            const cartId = getCartId();
+            if (!cartId) return;
+
+            const apiUrl = 'http://localhost:9000/store/carts/' + cartId + '/line-items/' + lineItemId;
+            console.log('Removing from cart:', apiUrl, 'lineItemId:', lineItemId);
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-publishable-api-key': 'pk_e7a96225f3cb0f9362f8391a9aa4d922e4d599076a08028f3b4bb3bf69fb0b'
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('Remove from cart error:', errorData);
+                    alert('Failed to remove item: ' + (errorData.message || errorData.error));
+                    return;
+                }
+
+                console.log('Remove from cart success');
+                alert('Successfully removed from cart!');
+                return;
+            } catch (error) {
+                console.error('Remove from cart error:', error);
+                alert('Error removing from cart: ' + error.message);
+            }
+        }
+
+        // Display cart data on page load
+        function displayCartData() {
+            const apiUrl = 'http://localhost:9000/store/carts/' + testCartData.id;
+            
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        document.getElementById('status').textContent = 'Error: Failed to load cart';
+                        console.error('Load cart error:', response);
+                        return;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Cart data loaded:', data);
+                    const cart = data.cart;
+                    
+                    // Update status
+                    document.getElementById('status').textContent = 'Cart Loaded Successfully';
+                    
+                    // Display items
+                    const itemsContainer = document.getElementById('items');
+                    itemsContainer.innerHTML = '';
+                    
+                    cart.items.forEach((item, index) => {
+                        const variant = item.variant;
+                        const price = variant?.calculated_price?.calculated_amount || 'N/A';
+                        
+                        const itemHtml = `
+                            <div class="cart-item border p-4 mb-4 rounded-lg">
+                                <div class="flex justify-between mb-2">
+                                    <div>
+                                        <strong>Test Product ${index + 1}</strong>
+                                        <br>
+                                        <small>Variant: ${variant?.title || 'N/A'}</small>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="price">£${(price / 100).toFixed(2)}</span>
+                                        <button class="text-red-500 ml-4" onclick="removeFromCartAPI('${item.id}')" class="px-3 py-1 rounded text-white">Remove</button>
+                                    </div>
+                                </div>
+                                <div class="text-sm text-gray-600">Quantity: ${item.quantity}</div>
+                            </div>
+                        `;
+                        
+                        itemsContainer.innerHTML += itemHtml;
+                    });
+                    
+                    // Display summary
+                    document.getElementById('subtotal').textContent = '£' + (cart.item_subtotal / 100).toFixed(2);
+                    document.getElementById('total').textContent = '£' + (cart.total / 100).toFixed(2);
+                })
+                .catch(error => {
+                    document.getElementById('status').textContent = 'Error loading cart';
+                    console.error('Load cart error:', error);
+                });
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            const cartId = getCartId();
+            
+            if (!cartId) {
+                // Create a test cart
+                createTestCart();
+                document.getElementById('status').textContent = 'Creating test cart...';
+                return;
+            }
+            
+            // Use existing cart ID
+            document.getElementById('currentCartId').textContent = cartId;
+            
+            displayCartData();
+        };
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f5f7 0%, #ffecd8 100%);
+            padding: 40px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            font-size: 32px;
+            margin-bottom: 24px;
+            color: #1f2937;
+            text-align: center;
+        }
+        .status {
+            font-size: 18px;
+            color: #7c3aed;
+            text-align: center;
+            margin-bottom: 16px;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .cart-info {
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #items {
+            margin-bottom: 20px;
+        }
+        .cart-item {
+            border: 2px solid #e5e7eb;
+            padding: 16px;
+            border-radius: 8px;
+        }
+        .price {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        button {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #dc2626;
+        }
+        .summary {
+            display: flex;
+            justify-content: space-between;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .test-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Shopping Cart Test Page</h1>
+        
+        <div id="status">Loading...</div>
+        
+        <div class="cart-info">
+            <p><strong>Current Cart ID:</strong> <span id="currentCartId">Not set</span></p>
+            <p><a href="/cart" style="color: #ef4444; text-decoration: underline;">Go to Cart Page</a></p>
+        </div>
+
+        <div class="test-actions">
+            <button onclick="displayCartData()">Refresh Cart Data</button>
+            <button onclick="createTestCart()">Create Test Cart</button>
+            <button onclick="refreshCart()">Fetch Latest Cart</button>
+        </div>
+
+        <div id="items">Loading cart items...</div>
+
+        <h2 style="margin-top: 30px;">Order Summary</h2>
+        <div class="summary">
+            <div><strong>Subtotal:</strong> <span id="subtotal">-</span></div>
+            <div><strong>Total:</strong> <span id="total">-</span></div>
+        </div>
+    </div>
+</body>
+</html>

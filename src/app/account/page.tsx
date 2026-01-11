@@ -1,23 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { User, Package, MapPin, LogOut, Plus, Trash2, Edit, ChevronRight, Loader2, Ticket } from "lucide-react";
+import { User as UserIcon, Package, MapPin, LogOut, Plus, Trash2, Edit, ChevronRight, Loader2, Ticket } from "lucide-react";
+import { useAuth } from "@/lib/providers";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://localhost:9000";
 const API_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "";
 
 type Tab = "profile" | "orders" | "addresses" | "coupons";
 
-interface Customer {
-  id: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  phone?: string;
-  metadata?: Record<string, any>;
-}
+// Re-using interfaces for local component specific props/state if needed
+// But leveraging global user for main identity
 
 interface Address {
   id: string;
@@ -53,22 +48,21 @@ interface Order {
   items: OrderItem[];
 }
 
-export default function AccountPage() {
+function AccountContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get("registered") === "true";
 
-  // Auth state
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  // Global Auth
+  const { user, loading: authLoading, login, logout } = useAuth();
+
+  // Local UI state
   const [loginError, setLoginError] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [authToken, setAuthToken] = useState<string | null>(null);
 
-  // Customer data
-  const [customer, setCustomer] = useState<Customer | null>(null);
+  // Data state
   const [orders, setOrders] = useState<Order[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -85,81 +79,29 @@ export default function AccountPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
-  // Helper to get auth headers
-  const getAuthHeaders = () => {
-    const headers: Record<string, string> = {
-      "x-publishable-api-key": API_KEY,
-    };
-    if (authToken) {
-      headers["Authorization"] = `Bearer ${authToken}`;
-    }
-    return headers;
-  };
+  // Helper to get auth token for direct fetches
+  const getAuthToken = () => localStorage.getItem("medusa_auth_token");
 
-  // Check auth status on mount
+  // Sync profile form when user loads
   useEffect(() => {
-    const savedToken = localStorage.getItem("medusa_auth_token");
-    if (savedToken) {
-      setAuthToken(savedToken);
-      checkAuthStatus(savedToken);
-    } else {
-      setIsLoading(false);
+    if (user) {
+      setFirstName(user.first_name || "");
+      setLastName(user.last_name || "");
     }
-  }, []);
+  }, [user]);
 
-  // Fetch data when logged in
+  // Data fetching effects
   useEffect(() => {
-    if (isLoggedIn && customer) {
-      setFirstName(customer.first_name || "");
-      setLastName(customer.last_name || "");
-    }
-  }, [isLoggedIn, customer]);
-
-  useEffect(() => {
-    if (isLoggedIn && activeTab === "orders") {
+    if (user && activeTab === "orders") {
       fetchOrders();
     }
-  }, [isLoggedIn, activeTab]);
+  }, [user, activeTab]);
 
   useEffect(() => {
-    if (isLoggedIn && activeTab === "addresses") {
+    if (user && activeTab === "addresses") {
       fetchAddresses();
     }
-  }, [isLoggedIn, activeTab]);
-
-  const checkAuthStatus = async (token?: string) => {
-    const tokenToUse = token || authToken;
-    if (!tokenToUse) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${BACKEND_URL}/store/customers/me`, {
-        headers: {
-          "x-publishable-api-key": API_KEY,
-          "Authorization": `Bearer ${tokenToUse}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCustomer(data.customer);
-        setIsLoggedIn(true);
-        setAuthToken(tokenToUse);
-      } else {
-        // Token invalid, clear it
-        localStorage.removeItem("medusa_auth_token");
-        setAuthToken(null);
-      }
-    } catch (error) {
-      console.error("Auth check failed:", error);
-      localStorage.removeItem("medusa_auth_token");
-      setAuthToken(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [user, activeTab]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,73 +109,28 @@ export default function AccountPage() {
     setIsLoggingIn(true);
 
     try {
-      // Step 1: Authenticate using Medusa v2 auth endpoint
-      const authResponse = await fetch(`${BACKEND_URL}/auth/customer/emailpass`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-publishable-api-key": API_KEY,
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!authResponse.ok) {
-        const errorData = await authResponse.json().catch(() => ({}));
-        throw new Error(errorData.message || "Invalid email or password");
-      }
-
-      const authData = await authResponse.json();
-
-      if (!authData.token) {
-        throw new Error("No authentication token received");
-      }
-
-      // Store token
-      const token = authData.token;
-      localStorage.setItem("medusa_auth_token", token);
-      setAuthToken(token);
-
-      // Step 2: Get customer data with the token
-      const customerResponse = await fetch(`${BACKEND_URL}/store/customers/me`, {
-        headers: {
-          "x-publishable-api-key": API_KEY,
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-
-      if (customerResponse.ok) {
-        const data = await customerResponse.json();
-        setCustomer(data.customer);
-        setIsLoggedIn(true);
-      } else {
-        throw new Error("Failed to get customer data. Please try again.");
-      }
+      await login(email, password);
     } catch (error: any) {
-      localStorage.removeItem("medusa_auth_token");
-      setAuthToken(null);
-      setLoginError(error.message || "Login failed. Please try again.");
+      setLoginError(error.message || "Login failed");
     } finally {
       setIsLoggingIn(false);
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("medusa_auth_token");
-    setAuthToken(null);
-    setIsLoggedIn(false);
-    setCustomer(null);
-    setOrders([]);
-    setAddresses([]);
+    logout();
+    router.push("/account"); // Refresh or stay
   };
 
   const fetchOrders = async () => {
-    if (!authToken) return;
+    const token = getAuthToken();
+    if (!token) return;
     setLoadingOrders(true);
     try {
       const response = await fetch(`${BACKEND_URL}/store/orders`, {
         headers: {
           "x-publishable-api-key": API_KEY,
-          "Authorization": `Bearer ${authToken}`,
+          "Authorization": `Bearer ${token}`,
         },
       });
 
@@ -249,13 +146,14 @@ export default function AccountPage() {
   };
 
   const fetchAddresses = async () => {
-    if (!authToken) return;
+    const token = getAuthToken();
+    if (!token) return;
     setLoadingAddresses(true);
     try {
       const response = await fetch(`${BACKEND_URL}/store/customers/me/addresses`, {
         headers: {
           "x-publishable-api-key": API_KEY,
-          "Authorization": `Bearer ${authToken}`,
+          "Authorization": `Bearer ${token}`,
         },
       });
 
@@ -273,6 +171,7 @@ export default function AccountPage() {
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     setProfileMessage("");
+    const token = getAuthToken();
 
     try {
       const response = await fetch(`${BACKEND_URL}/store/customers/me`, {
@@ -280,7 +179,7 @@ export default function AccountPage() {
         headers: {
           "Content-Type": "application/json",
           "x-publishable-api-key": API_KEY,
-          "Authorization": `Bearer ${authToken}`,
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
           first_name: firstName,
@@ -290,8 +189,9 @@ export default function AccountPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setCustomer(data.customer);
-        setProfileMessage("Profile updated successfully!");
+        // Since user comes from AuthContext, we ideally should function to update it there.
+        // For now, we'll force a reload to get fresh data or just let it be.
+        setProfileMessage("Profile updated successfully! (Refresh to see changes globally)");
       } else {
         throw new Error("Failed to update profile");
       }
@@ -315,6 +215,8 @@ export default function AccountPage() {
       is_default_shipping: formData.get("isDefault") === "on",
     };
 
+    const token = getAuthToken();
+
     try {
       const url = editingAddress
         ? `${BACKEND_URL}/store/customers/me/addresses/${editingAddress.id}`
@@ -325,7 +227,7 @@ export default function AccountPage() {
         headers: {
           "Content-Type": "application/json",
           "x-publishable-api-key": API_KEY,
-          "Authorization": `Bearer ${authToken}`,
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify(addressData),
       });
@@ -342,13 +244,14 @@ export default function AccountPage() {
 
   const handleDeleteAddress = async (addressId: string) => {
     if (!confirm("Are you sure you want to delete this address?")) return;
+    const token = getAuthToken();
 
     try {
       await fetch(`${BACKEND_URL}/store/customers/me/addresses/${addressId}`, {
         method: "DELETE",
         headers: {
           "x-publishable-api-key": API_KEY,
-          "Authorization": `Bearer ${authToken}`,
+          "Authorization": `Bearer ${token}`,
         },
       });
       fetchAddresses();
@@ -384,7 +287,7 @@ export default function AccountPage() {
   };
 
   // Loading state
-  if (isLoading) {
+  if (authLoading) {
     return (
       <div className="pt-24 pb-16 flex items-center justify-center min-h-[60vh]">
         <Loader2 className="w-8 h-8 animate-spin text-terracotta" />
@@ -393,7 +296,7 @@ export default function AccountPage() {
   }
 
   // Login form
-  if (!isLoggedIn) {
+  if (!user) {
     return (
       <div className="pt-24 pb-16">
         <div className="max-w-md mx-auto px-6">
@@ -516,7 +419,7 @@ export default function AccountPage() {
           </label>
           <input
             type="email"
-            value={customer?.email || ""}
+            value={user?.email || ""}
             className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-charcoal bg-gray-50"
             disabled
           />
@@ -547,7 +450,7 @@ export default function AccountPage() {
                     "x-publishable-api-key": API_KEY
                   },
                   body: JSON.stringify({
-                    email: customer?.email,
+                    email: user?.email,
                     first_name: firstName,
                     last_name: lastName
                   })
@@ -635,12 +538,13 @@ export default function AccountPage() {
     const [redeeming, setRedeeming] = useState(false);
     const [redeemMessage, setRedeemMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-    const collectedCoupons: string[] = customer?.metadata?.coupons || [];
+    const collectedCoupons: string[] = (user?.metadata?.coupons as string[]) || [];
 
     const handleRedeem = async () => {
       if (!couponCode.trim()) return;
       setRedeeming(true);
       setRedeemMessage(null);
+      const token = getAuthToken();
 
       // Simulate validation (or strict check if you have an API for it)
       // Ideally we should check if code exists in backend via a "check-coupon" endpoint, 
@@ -663,11 +567,11 @@ export default function AccountPage() {
           headers: {
             "Content-Type": "application/json",
             "x-publishable-api-key": API_KEY,
-            "Authorization": `Bearer ${authToken}`
+            "Authorization": `Bearer ${token}`
           },
           body: JSON.stringify({
             metadata: {
-              ...customer?.metadata,
+              ...user?.metadata,
               coupons: newCoupons
             }
           })
@@ -675,9 +579,10 @@ export default function AccountPage() {
 
         if (response.ok) {
           const data = await response.json();
-          setCustomer(data.customer); // Update local state
+          // Again, user state in context won't auto-update. 
+          // Ideally invoke a refreshUser from context. 
+          setRedeemMessage({ text: "Coupon redeemed! (Refresh if not visible)", type: 'success' });
           setCouponCode("");
-          setRedeemMessage({ text: "Coupon redeemed successfully!", type: 'success' });
         } else {
           throw new Error("Failed to redeem coupon");
         }
@@ -965,7 +870,7 @@ export default function AccountPage() {
         <div className="flex items-center justify-between mb-8">
           <h1 className="font-serif text-4xl text-charcoal">My Account</h1>
           <p className="text-sm text-charcoal-light">
-            Welcome, {customer?.first_name || customer?.email}
+            Welcome, {user?.first_name || user?.email}
           </p>
         </div>
 
@@ -978,7 +883,7 @@ export default function AccountPage() {
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${activeTab === "profile" ? "bg-terracotta/10 text-terracotta" : "text-charcoal hover:bg-gray-50"
                   }`}
               >
-                <User size={18} />
+                <UserIcon size={18} />
                 <span className="text-sm">Profile</span>
               </button>
               <button
@@ -1003,7 +908,7 @@ export default function AccountPage() {
                   }`}
               >
                 <Ticket size={20} />
-                <span className="uppercase tracking-widest text-xs font-bold">Coupons</span>
+                <span className="text-sm">Coupons</span>
               </button>
               <button
                 onClick={handleLogout}
@@ -1026,5 +931,17 @@ export default function AccountPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense fallback={
+      <div className="pt-24 pb-16 flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-terracotta" />
+      </div>
+    }>
+      <AccountContent />
+    </Suspense>
   );
 }

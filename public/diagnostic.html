@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LUMIERA - 后台诊断工具</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f0;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 { color: #333; border-bottom: 3px solid #e74c3c; padding-bottom: 10px; }
+    h2 { color: #666; margin-top: 30px; }
+    .test-item {
+      margin: 15px 0;
+      padding: 15px;
+      border-left: 4px solid #3498db;
+      background: #f8f9fa;
+    }
+    .success { border-left-color: #2ecc71; background: #d4edda; }
+    .error { border-left-color: #e74c3c; background: #fde8e8; }
+    .warning { border-left-color: #f39c12; background: #fef3c7; }
+    .btn {
+      background: #3498db;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    .btn:hover { background: #2980b9; }
+    .btn.secondary { background: #95a5a6; }
+    .result { margin-top: 10px; font-weight: bold; }
+    pre { background: #f4f4f4; padding: 10px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 LUMIERA 后台诊断工具</h1>
+
+    <div class="test-item">
+      <h3>1. 检测当前页面 URL</h3>
+      <p>当前访问的地址：<strong id="currentUrl"></strong></p>
+      <div class="result" id="urlCheck"></div>
+    </div>
+
+    <div class="test-item">
+      <h3>2. 测试后端连接 (Port 9000)</h3>
+      <button class="btn" onclick="testBackend9000()">测试 9000 端口</button>
+      <div class="result" id="backend9000"></div>
+    </div>
+
+    <div class="test-item">
+      <h3>3. 测试后端连接 (Port 63591)</h3>
+      <button class="btn secondary" onclick="testBackend63591()">测试 63591 端口</button>
+      <div class="result" id="backend63591"></div>
+    </div>
+
+    <div class="test-item">
+      <h3>4. 测试管理员登录</h3>
+      <button class="btn" onclick="testLogin()">测试登录</button>
+      <div class="result" id="loginTest"></div>
+    </div>
+
+    <div class="test-item warning">
+      <h3>⚠️ 重要提示</h3>
+      <p><strong>正确的后台地址是：</strong><br>
+        <code style="font-size: 18px; background: #eee; padding: 10px;">http://localhost:9000/app</code>
+      </p>
+      <p><strong>如果您看到 63591 端口，可能的原因：</strong></p>
+      <ul>
+        <li>浏览器缓存了旧的 URL</li>
+        <li>书签或历史记录指向错误的地址</li>
+        <li>某个代理或VPN重定向了请求</li>
+        <li>手动输入了错误的端口</li>
+      </ul>
+    </div>
+
+    <div class="test-item success">
+      <h3>✅ 解决方案</h3>
+      <ol>
+        <li><strong>清除浏览器缓存：</strong><br>
+          <ul>
+            <li>Mac: <code>Cmd + Shift + Delete</code></li>
+            <li>Windows: <code>Ctrl + Shift + Delete</code></li>
+            <li>选择"缓存的图片和文件"</li>
+          </ul>
+        </li>
+        <li><strong>手动访问正确地址：</strong><br>
+          <a href="http://localhost:9000/app" target="_blank" style="color: #3498db; font-weight: bold;">
+            点击这里 → http://localhost:9000/app
+          </a>
+        </li>
+        <li><strong>使用无痕/隐私模式：</strong><br>
+          打开新的无痕窗口访问正确地址
+        </li>
+      </ol>
+    </div>
+
+    <div class="test-item">
+      <h3>管理员登录信息</h3>
+      <pre>
+Email: admin@lumiera.com
+Password: AdminPassword123
+      </pre>
+    </div>
+  </div>
+
+  <script>
+    // 显示当前 URL
+    document.getElementById('currentUrl').textContent = window.location.href;
+
+    const currentUrl = window.location.href;
+    const urlCheckDiv = document.getElementById('urlCheck');
+
+    if (currentUrl.includes('63591')) {
+      urlCheckDiv.innerHTML = '<span class="error">❌ 错误！您正在访问端口 63591，应该访问 9000！</span>';
+      urlCheckDiv.className = 'error';
+    } else if (currentUrl.includes('9000')) {
+      urlCheckDiv.innerHTML = '<span class="success">✅ 正确！您正在访问端口 9000</span>';
+      urlCheckDiv.className = 'success';
+    } else {
+      urlCheckDiv.innerHTML = '<span class="warning">⚠️ 当前 URL 不明确</span>';
+      urlCheckDiv.className = 'warning';
+    }
+
+    // 测试 9000 端口
+    function testBackend9000() {
+      const resultDiv = document.getElementById('backend9000');
+      resultDiv.innerHTML = '<p>测试中...</p>';
+
+      fetch('http://localhost:9000/app/login')
+        .then(r => {
+          if (r.ok) {
+            resultDiv.innerHTML = '<span class="success">✅ 成功！端口 9000 可以访问</span>';
+          } else {
+            resultDiv.innerHTML = '<span class="error">❌ 失败！端口 9000 返回 ' + r.status + '</span>';
+          }
+        })
+        .catch(e => {
+          resultDiv.innerHTML = '<span class="error">❌ 错误：' + e.message + '</span>';
+        });
+    }
+
+    // 测试 63591 端口
+    function testBackend63591() {
+      const resultDiv = document.getElementById('backend63591');
+      resultDiv.innerHTML = '<p>测试中...</p>';
+
+      fetch('http://localhost:63591/app/login')
+        .then(r => {
+          if (r.ok) {
+            resultDiv.innerHTML = '<span class="success">✅ 意外！端口 63591 也可以访问</span>';
+          } else {
+            resultDiv.innerHTML = '<span class="error">❌ 失败！端口 63591 返回 ' + r.status + '</span>';
+          }
+        })
+        .catch(e => {
+          resultDiv.innerHTML = '<span class="warning">⚠️ 正常！端口 63591 不可访问（' + e.message + '）</span>';
+        });
+    }
+
+    // 测试登录
+    function testLogin() {
+      const resultDiv = document.getElementById('loginTest');
+      resultDiv.innerHTML = '<p>测试登录中...</p>';
+
+      fetch('http://localhost:9000/auth/user/emailpass', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          email: 'admin@lumiera.com',
+          password: 'AdminPassword123'
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.token) {
+          resultDiv.innerHTML = '<span class="success">✅ 登录成功！Token 已生成</span>';
+        } else {
+          resultDiv.innerHTML = '<span class="error">❌ 登录失败！</span>';
+        }
+      })
+      .catch(e => {
+        resultDiv.innerHTML = '<span class="error">❌ 错误：' + e.message + '</span>';
+      });
+    }
+
+    // 自动运行测试
+    setTimeout(testBackend9000, 500);
+    setTimeout(testBackend63591, 1000);
+  </script>
+</body>
+</html>

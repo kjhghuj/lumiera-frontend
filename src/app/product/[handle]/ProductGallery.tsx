@@ -159,7 +159,7 @@ export default function ProductGallery({
         </div>
 
         {/* Main Image with transition effect */}
-        <div className={`transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+        <div className={`relative w-full h-full transition-opacity duration-300 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
           <Image
             src={getImageSrc(selectedIndex)}
             alt={`${title}${selectedVariant ? ` - ${selectedVariant.title || 'Variant'}` : ''} - Image ${selectedIndex + 1}`}

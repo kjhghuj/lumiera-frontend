@@ -547,7 +547,7 @@ function CouponModal({
 
           {message && (
             <p className={`text-sm ${message.type === 'success' ? 'text-green-600' :
-                message.type === 'error' ? 'text-red-500' : 'text-blue-600'
+              message.type === 'error' ? 'text-red-500' : 'text-blue-600'
               }`}>
               {message.text}
             </p>
@@ -658,19 +658,21 @@ function OrderSummary({
       </div>
 
       {/* Checkout Button */}
-      <button
-        disabled={isLoading || itemCount === 0}
-        className="w-full mt-6 bg-terracotta text-white py-4 rounded-full hover:bg-terracotta-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-      >
-        {isLoading ? (
-          <>
-            <LoadingSpinner />
-            Processing...
-          </>
-        ) : (
-          'Proceed to Checkout'
-        )}
-      </button>
+      <Link href="/checkout">
+        <button
+          disabled={isLoading || itemCount === 0}
+          className="w-full mt-6 bg-terracotta text-white py-4 rounded-full hover:bg-terracotta-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {isLoading ? (
+            <>
+              <LoadingSpinner />
+              Processing...
+            </>
+          ) : (
+            "Proceed to Checkout"
+          )}
+        </button>
+      </Link>
 
       {/* Continue Shopping */}
       <Link
@@ -747,6 +749,8 @@ export default function CartPage() {
     setPromoLoading(true);
     try {
       await removePromoCode(code);
+    } catch (error) {
+      console.error("Failed to remove promo code:", error);
     } finally {
       setPromoLoading(false);
     }

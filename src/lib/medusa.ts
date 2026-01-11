@@ -65,7 +65,6 @@ export async function getProductById(id: string, regionId?: string) {
   try {
     const { product } = await sdk.store.product.retrieve(id, {
       region_id: regionId,
-      sales_channel_id: SALES_CHANNEL_ID || undefined,
       // Include *variants.images to get variant-specific images
       fields: "*variants.calculated_price,*variants.options,*variants.images,*variants.inventory_quantity,*images,*categories,*tags",
     });
@@ -131,8 +130,6 @@ export async function getProductsByCollection(collectionId: string, regionId?: s
 }
 
 // Cart Operations
-// Medusa v2 fields selection - use * to select all fields + relations
-const CART_FIELDS = "*items,*items.variant,*items.variant.product,*items.product,*items.variant.product.images,*items.thumbnail,*items.adjustments";
 
 export async function createCart(regionId: string) {
   try {
@@ -149,15 +146,14 @@ export async function createCart(regionId: string) {
 
 export async function getCart(cartId: string) {
   try {
-    const { cart } = await sdk.store.cart.retrieve(cartId, {
-      fields: CART_FIELDS + ",*promotions",
-    });
+    // Use default Medusa v2 cart response without custom fields to avoid 400 errors
+    const { cart } = await sdk.store.cart.retrieve(cartId);
     console.log("[getCart] Retrieved cart:", cartId, "items:", cart?.items?.length || 0);
     return cart;
   } catch (error: any) {
-    // If cart doesn't exist (404), return null instead of throwing
-    if (error?.status === 404 || error?.message?.includes("not found")) {
-      console.log("[getCart] Cart not found:", cartId);
+    // If cart doesn't exist (404) or is invalid (400), return null instead of throwing
+    if (error?.status === 404 || error?.status === 400 || error?.message?.includes("not found") || error?.message?.includes("Bad Request")) {
+      console.log("[getCart] Cart not found or invalid:", cartId);
       return null;
     }
     console.error("Error fetching cart:", error);
@@ -167,12 +163,9 @@ export async function getCart(cartId: string) {
 
 export async function addToCart(cartId: string, variantId: string, quantity: number = 1) {
   try {
-    // Correct param order: cartId, body, query, headers
     const { cart } = await sdk.store.cart.createLineItem(cartId, {
       variant_id: variantId,
       quantity,
-    }, {
-      fields: CART_FIELDS,
     });
     return cart;
   } catch (error) {
@@ -183,11 +176,8 @@ export async function addToCart(cartId: string, variantId: string, quantity: num
 
 export async function updateCartItem(cartId: string, lineItemId: string, quantity: number) {
   try {
-    // Correct param order: cartId, lineItemId, body, query, headers
     const { cart } = await sdk.store.cart.updateLineItem(cartId, lineItemId, {
       quantity,
-    }, {
-      fields: CART_FIELDS,
     });
     return cart;
   } catch (error) {
@@ -199,10 +189,7 @@ export async function updateCartItem(cartId: string, lineItemId: string, quantit
 export async function removeFromCart(cartId: string, lineItemId: string) {
   try {
     // Medusa v2 deleteLineItem returns { deleted: true, id, object, parent: cart }
-    // We need to extract the cart from the 'parent' field
-    const response = await sdk.store.cart.deleteLineItem(cartId, lineItemId, {
-      fields: CART_FIELDS,
-    }) as any;
+    const response = await sdk.store.cart.deleteLineItem(cartId, lineItemId) as any;
 
     // Handle both possible response formats:
     // - Medusa v2 format: { deleted: true, parent: cart }
@@ -240,7 +227,7 @@ export async function applyPromoCode(cartId: string, code: string) {
       throw new Error(errorData.message || "Failed to apply promo code");
     }
 
-    // After applying promo code, fetch the full cart with all fields
+    // After applying promo code, fetches full cart with all fields
     const fullCart = await getCart(cartId);
     console.log("[applyPromoCode] Success, promotions:", fullCart?.promotions?.length || 0);
     return fullCart;
@@ -254,7 +241,6 @@ export async function removePromoCode(cartId: string, code: string) {
   try {
     console.log("[removePromoCode] Removing code:", code, "from cart:", cartId);
 
-    // Medusa v2 uses DELETE /store/carts/{id}/promotions with promo_codes array
     const response = await fetch(`${MEDUSA_BACKEND_URL}/store/carts/${cartId}/promotions`, {
       method: "DELETE",
       headers: {
@@ -266,15 +252,12 @@ export async function removePromoCode(cartId: string, code: string) {
       }),
     });
 
-    console.log("[removePromoCode] Response status:", response.status);
-
     if (!response.ok) {
       const errorData = await response.json();
       console.error("[removePromoCode] Error response:", errorData);
       throw new Error(errorData.message || "Failed to remove promo code");
     }
 
-    // After removing promo code, fetch the full cart with all fields
     const fullCart = await getCart(cartId);
     console.log("[removePromoCode] Success, promotions:", fullCart?.promotions?.length || 0);
     return fullCart;
@@ -346,7 +329,7 @@ export async function getCustomerOrders() {
 // Customer Addresses
 export async function getCustomerAddresses() {
   try {
-    const { addresses } = await sdk.store.customer.listAddresses();
+    const { addresses } = await sdk.store.customer.listAddress();
     return addresses || [];
   } catch (error) {
     console.error("Error fetching customer addresses:", error);
@@ -366,8 +349,8 @@ export async function createCustomerAddress(addressData: {
   is_default_shipping?: boolean;
 }) {
   try {
-    const { address } = await sdk.store.customer.createAddress(addressData);
-    return address;
+    const { customer } = await sdk.store.customer.createAddress(addressData);
+    return customer;
   } catch (error) {
     console.error("Error creating address:", error);
     throw error;
@@ -389,8 +372,8 @@ export async function updateCustomerAddress(
   }
 ) {
   try {
-    const { address } = await sdk.store.customer.updateAddress(addressId, addressData);
-    return address;
+    const { customer } = await sdk.store.customer.updateAddress(addressId, addressData);
+    return customer;
   } catch (error) {
     console.error("Error updating address:", error);
     throw error;
@@ -423,6 +406,44 @@ export async function updateCustomerProfile(data: {
   }
 }
 
+export async function updateCustomerMetadata(metadata: Record<string, any>) {
+  try {
+    const { customer } = await sdk.store.customer.update({ metadata });
+    return customer;
+  } catch (error) {
+    console.error("Error updating customer metadata:", error);
+    throw error;
+  }
+}
+
+export async function updateCartOwnership(cartId: string, token: string) {
+  try {
+    console.log("[updateCartOwnership] Transferring cart", cartId);
+    // Medusa v2: POST /store/carts/:id/customer to assign to logged-in user
+    const response = await fetch(`${MEDUSA_BACKEND_URL}/store/carts/${cartId}/customer`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-publishable-api-key": PUBLISHABLE_API_KEY,
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("[updateCartOwnership] Error response:", errorData);
+      throw new Error(errorData.message || "Failed to update cart ownership");
+    }
+
+    const { cart } = await response.json();
+    return cart;
+  } catch (error) {
+    console.error("Error updating cart ownership:", error);
+    throw error;
+  }
+}
+
 // Search
 export async function searchProducts(query: string, regionId?: string) {
   try {
@@ -447,6 +468,68 @@ export function formatPrice(amount: number | null | undefined, currencyCode: str
     style: "currency",
     currency: currencyCode,
   }).format(amount / 100); // Medusa stores prices in cents
+}
+
+// Stripe Payment Functions
+
+export async function createAndSelectStripePaymentSession(cartId: string) {
+  try {
+    console.log("[createAndSelectStripePaymentSession] Creating and selecting payment session for cart:", cartId);
+
+    const response = await fetch(`${MEDUSA_BACKEND_URL}/store/carts/${cartId}/payment-sessions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-publishable-api-key": PUBLISHABLE_API_KEY,
+      },
+      body: JSON.stringify({
+        provider_id: "stripe",
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("[createAndSelectStripePaymentSession] Error response:", errorData);
+      throw new Error(errorData.message || "Failed to create payment session");
+    }
+
+    const data = await response.json();
+    console.log("[createAndSelectStripePaymentSession] Success:", data);
+    return data.cart;
+  } catch (error) {
+    console.error("[createAndSelectStripePaymentSession] Error:", error);
+    throw error;
+  }
+}
+export async function selectStripePaymentSession(cartId: string) {
+  try {
+    console.log("[selectStripePaymentSession] Selecting payment session for cart:", cartId);
+
+    // Use direct fetch since updatePaymentSession is not available in SDK
+    const response = await fetch(`${MEDUSA_BACKEND_URL}/store/carts/${cartId}/payment-sessions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-publishable-api-key": PUBLISHABLE_API_KEY,
+      },
+      body: JSON.stringify({
+        provider_id: "stripe",
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("[selectStripePaymentSession] Error response:", errorData);
+      throw new Error(errorData.message || "Failed to select payment session");
+    }
+
+    const data = await response.json();
+    console.log("[selectStripePaymentSession] Success, cart:", data.cart?.id);
+    return data.cart;
+  } catch (error) {
+    console.error("[selectStripePaymentSession] Error:", error);
+    throw error;
+  }
 }
 
 export default sdk;
