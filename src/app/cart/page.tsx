@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCart, useRegion } from "@/lib/providers";
 import { formatPrice, getProductById } from "@/lib/medusa";
 import { StoreCartLineItem } from "@/lib/types";
@@ -344,7 +345,7 @@ function getDiscountForCode(cart: any, code: string): number {
   return totalDiscount;
 }
 
-// Coupon Section Component
+// Collapsible Coupon Section
 function CouponSection({
   cart,
   appliedCodes,
@@ -360,10 +361,27 @@ function CouponSection({
   onRemoveCode: (code: string) => Promise<void>;
   isLoading: boolean;
 }) {
-  const [showModal, setShowModal] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [inputCode, setInputCode] = useState("");
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [applying, setApplying] = useState(false);
+
+  // Auto-expand if there's a message (e.g. from auto-apply) or codes are applied
+  useEffect(() => {
+    if (appliedCodes.length > 0 || message) {
+      setIsOpen(true);
+    }
+  }, [appliedCodes.length, message]);
+
+  // Helper to parse error messages
+  const getUserFriendlyError = (msg: string) => {
+    const m = msg.toLowerCase();
+    if (m.includes("expired")) return "This code has expired.";
+    if (m.includes("exist")) return "Code does not exist.";
+    if (m.includes("invalid")) return "Invalid promo code.";
+    if (m.includes("min_limit") || m.includes("threshold")) return "Cart total is too low for this code.";
+    return msg;
+  };
 
   const handleApply = async () => {
     if (!inputCode.trim()) return;
@@ -373,12 +391,15 @@ function CouponSection({
       const result = await onApplyCode(inputCode.trim().toUpperCase());
       if (result.success) {
         setInputCode("");
-        setMessage({ text: result.message, type: 'success' });
+        // Optimistic success message, the UI will update with savings automatically in the list below
+        setMessage({ text: "Code applied successfully!", type: 'success' });
       } else {
-        setMessage({ text: result.message, type: 'info' });
+        const friendlyMsg = getUserFriendlyError(result.message);
+        setMessage({ text: friendlyMsg, type: 'error' });
       }
     } catch (err: any) {
-      setMessage({ text: err.message || "Invalid promo code", type: 'error' });
+      const friendlyMsg = getUserFriendlyError(err.message || "");
+      setMessage({ text: friendlyMsg, type: 'error' });
     } finally {
       setApplying(false);
     }
@@ -391,197 +412,99 @@ function CouponSection({
   };
 
   return (
-    <>
-      <div className="bg-cream rounded-xl p-4 mb-4">
-        <div className="flex items-center gap-2 mb-3">
+    <div className="border border-gray-200 rounded-xl overflow-hidden mb-4">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between p-4 bg-white hover:bg-gray-50 transition-colors text-left"
+      >
+        <div className="flex items-center gap-2 text-charcoal font-medium">
           <CouponIcon />
-          <span className="font-medium text-charcoal">Promo Code</span>
+          <span>Have a promo code?</span>
         </div>
+        <span className={`text-charcoal-light transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+          </svg>
+        </span>
+      </button>
 
-        {/* Applied Codes */}
-        {appliedCodes.length > 0 && (
-          <div className="space-y-2 mb-3">
-            {appliedCodes.map((code) => {
-              const discountAmount = getDiscountForCode(cart, code);
-              return (
-                <div key={code} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-terracotta/30">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono bg-terracotta/10 text-terracotta px-2 py-0.5 rounded">
-                      {code}
-                    </span>
-                    {discountAmount > 0 && (
-                      <span className="text-sm text-green-600 font-medium">
-                        -{formatPrice(discountAmount, currencyCode)}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => onRemoveCode(code)}
-                    disabled={isLoading}
-                    className="text-charcoal-light hover:text-terracotta transition-colors disabled:opacity-50"
-                    aria-label="Remove promo code"
-                  >
-                    <CloseIcon />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Input Field */}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={inputCode}
-            onChange={(e) => setInputCode(e.target.value.toUpperCase())}
-            onKeyDown={handleKeyDown}
-            placeholder="Enter promo code"
-            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta uppercase font-mono"
-            disabled={applying || isLoading}
-          />
-          <button
-            onClick={handleApply}
-            disabled={!inputCode.trim() || applying || isLoading}
-            className="px-4 py-2 bg-charcoal text-white text-sm rounded-lg hover:bg-charcoal-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {applying ? <LoadingSpinner /> : "Apply"}
-          </button>
-        </div>
-
-        {/* Feedback Message */}
-        {message && (
-          <p className={`text-sm mt-2 ${message.type === 'success' ? 'text-green-600' :
-            message.type === 'error' ? 'text-red-500' : 'text-blue-600'
-            }`}>
-            {message.text}
-          </p>
-        )}
-      </div>
-
-      {/* Modal */}
-      {showModal && (
-        <CouponModal
-          onClose={() => setShowModal(false)}
-          onApplyCode={onApplyCode}
-          appliedCodes={appliedCodes}
-        />
-      )}
-    </>
-  );
-}
-
-// Coupon Modal Component
-function CouponModal({
-  onClose,
-  onApplyCode,
-  appliedCodes
-}: {
-  onClose: () => void;
-  onApplyCode: (code: string) => Promise<{ success: boolean; message: string }>;
-  appliedCodes: string[];
-}) {
-  const [inputCode, setInputCode] = useState("");
-  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [applying, setApplying] = useState(false);
-
-  const handleApply = async () => {
-    if (!inputCode.trim()) return;
-    setMessage(null);
-    setApplying(true);
-    try {
-      const result = await onApplyCode(inputCode.trim().toUpperCase());
-      if (result.success) {
-        setInputCode("");
-        setMessage({ text: result.message, type: 'success' });
-        // Optional: close modal on success after short delay?
-        // Timeout to let user see success message
-        setTimeout(onClose, 1500);
-      } else {
-        setMessage({ text: result.message, type: 'info' });
-      }
-    } catch (err: any) {
-      setMessage({ text: err.message || "Invalid promo code", type: 'error' });
-    } finally {
-      setApplying(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[80vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="font-serif text-xl text-charcoal">Enter Promo Code</h3>
-          <button
-            onClick={onClose}
-            className="text-charcoal-light hover:text-charcoal transition-colors"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-
-        {/* Input */}
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-charcoal-light mb-2">
-              Promo Code
-            </label>
-            <input
-              type="text"
-              value={inputCode}
-              onChange={(e) => setInputCode(e.target.value.toUpperCase())}
-              placeholder="Enter your code here"
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta uppercase font-mono text-lg"
-              disabled={applying}
-              autoFocus
-            />
-          </div>
-
-          {message && (
-            <p className={`text-sm ${message.type === 'success' ? 'text-green-600' :
-              message.type === 'error' ? 'text-red-500' : 'text-blue-600'
-              }`}>
-              {message.text}
-            </p>
-          )}
-
+      {isOpen && (
+        <div className="p-4 bg-gray-50 border-t border-gray-200">
+          {/* Applied Codes List */}
           {appliedCodes.length > 0 && (
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-charcoal-light mb-2">Currently applied:</p>
-              <div className="flex flex-wrap gap-2">
-                {appliedCodes.map((code) => (
-                  <span key={code} className="text-xs font-mono bg-terracotta/10 text-terracotta px-2 py-1 rounded">
-                    {code}
-                  </span>
-                ))}
-              </div>
+            <div className="space-y-2 mb-4">
+              {appliedCodes.map((code) => {
+                const discountAmount = getDiscountForCode(cart, code);
+                return (
+                  <div key={code} className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-green-100 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                          <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <span className="font-mono font-medium text-charcoal">{code}</span>
+                      {discountAmount > 0 && (
+                        <span className="text-sm text-green-600 font-medium ml-1">
+                          saved {formatPrice(discountAmount, currencyCode)}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => onRemoveCode(code)}
+                      disabled={isLoading}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                      aria-label="Remove code"
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
 
-          <button
-            onClick={handleApply}
-            disabled={!inputCode.trim() || applying}
-            className="w-full py-3 bg-terracotta text-white rounded-full hover:bg-terracotta-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
-          >
-            {applying ? (
-              <>
-                <LoadingSpinner />
-                Applying...
-              </>
-            ) : (
-              "Apply Code"
-            )}
-          </button>
+          {/* Input Area */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={inputCode}
+              onChange={(e) => setInputCode(e.target.value.toUpperCase())} // Auto-uppercase
+              onKeyDown={handleKeyDown}
+              placeholder="Enter code"
+              className="flex-1 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-charcoal/20 focus:border-charcoal font-mono uppercase placeholder:normal-case"
+              disabled={applying || isLoading}
+            />
+            <button
+              onClick={handleApply}
+              disabled={!inputCode.trim() || applying || isLoading}
+              className="px-6 py-2 bg-charcoal text-white text-sm font-medium rounded-lg hover:bg-charcoal-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {applying ? <LoadingSpinner /> : "Apply"}
+            </button>
+          </div>
+
+          {/* Feedback Messages */}
+          {message && (
+            <div className={`mt-3 text-sm p-3 rounded-lg flex items-start gap-2 ${message.type === 'success' ? 'bg-green-50 text-green-700' :
+              message.type === 'error' ? 'bg-red-50 text-red-600' :
+                'bg-blue-50 text-blue-600'
+              }`}>
+              {message.type === 'success' && (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 flex-shrink-0">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clipRule="evenodd" />
+                </svg>
+              )}
+              {message.type === 'error' && (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 flex-shrink-0">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75 0 0 1 10 5Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
+                </svg>
+              )}
+              <span>{message.text}</span>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -711,8 +634,22 @@ function OrderSummary({
 export default function CartPage() {
   const { cart, cartLoading, cartCount, updateItem, removeItem, applyBetterCoupon, removePromoCode } = useCart();
   const { region } = useRegion();
+  const searchParams = useSearchParams();
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
+
+  // Auto-apply coupon from URL
+  useEffect(() => {
+    const codeParam = searchParams.get('code');
+    if (codeParam && cart && !cartLoading) {
+      // Check if already applied to avoid loop
+      const alreadyApplied = cart.promotions?.some((p: any) => p.code === codeParam.toUpperCase());
+      if (!alreadyApplied) {
+        console.log("Auto-applying coupon from URL:", codeParam);
+        applyBetterCoupon(codeParam.toUpperCase());
+      }
+    }
+  }, [searchParams, cart, cartLoading, applyBetterCoupon]);
 
   const currencyCode = cart?.currency_code?.toUpperCase() || region?.currency_code?.toUpperCase() || "GBP";
 

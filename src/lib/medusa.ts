@@ -146,9 +146,19 @@ export async function createCart(regionId: string) {
 
 export async function getCart(cartId: string) {
   try {
-    // Use default Medusa v2 cart response without custom fields to avoid 400 errors
-    const { cart } = await sdk.store.cart.retrieve(cartId);
-    console.log("[getCart] Retrieved cart:", cartId, "items:", cart?.items?.length || 0);
+    // Retrieve cart with all necessary fields
+    // CRITICAL: In Medusa v2, cart totals (total, subtotal, tax_total, discount_total, etc.) 
+    // are CALCULATED FIELDS and must be explicitly requested in the fields parameter.
+    // Using "*" alone will NOT return these calculated fields!
+    // 
+    // Syntax:
+    // - "*relation" = get all fields of a relation
+    // - "+field" = add field to default set
+    // - "field" = explicitly request field
+    const { cart } = await sdk.store.cart.retrieve(cartId, {
+      fields: "+items,+items.variant,+items.variant.product,+items.adjustments,+promotions,+region,+total,+subtotal,+item_subtotal,+discount_total,+tax_total,+shipping_total,+item_tax_total",
+    });
+    console.log("[getCart] Retrieved cart:", cartId, "items:", cart?.items?.length || 0, "promotions:", cart?.promotions?.length || 0, "total:", cart?.total || 0);
     return cart;
   } catch (error: any) {
     // If cart doesn't exist (404) or is invalid (400), return null instead of throwing
@@ -156,8 +166,9 @@ export async function getCart(cartId: string) {
       console.log("[getCart] Cart not found or invalid:", cartId);
       return null;
     }
-    console.error("Error fetching cart:", error);
-    return null;
+    // For other errors (500, network, etc.), rethrow so we don't accidentally clear the cart ID
+    console.error("[getCart] Error fetching cart (Rethrowing):", error);
+    throw error;
   }
 }
 
@@ -205,64 +216,100 @@ export async function removeFromCart(cartId: string, lineItemId: string) {
 // Promotion Code Operations
 export async function applyPromoCode(cartId: string, code: string) {
   try {
-    console.log("[applyPromoCode] Applying code:", code, "to cart:", cartId);
+    console.log("[applyPromoCode] ========== START ==========");
+    console.log("[applyPromoCode] Cart ID:", cartId, "Code:", code);
 
-    // Medusa v2 uses POST /store/carts/{id}/promotions with promo_codes array
-    const response = await fetch(`${MEDUSA_BACKEND_URL}/store/carts/${cartId}/promotions`, {
+    // Get cart state BEFORE applying promo
+    const cartBefore = await getCart(cartId);
+    console.log("[applyPromoCode] BEFORE - Items:", cartBefore?.items?.length || 0,
+      "Item quantities:", cartBefore?.items?.map(i => ({ id: i.id, qty: i.quantity })) || []);
+    console.log("[applyPromoCode] BEFORE - Promotions:", cartBefore?.promotions?.length || 0);
+    console.log("[applyPromoCode] BEFORE - Total:", cartBefore?.total || 0);
+
+    const url = `${MEDUSA_BACKEND_URL}/store/carts/${cartId}/promotions`;
+    const payload = { promo_codes: [code] };
+
+    console.log("[applyPromoCode] Sending POST request:", url, payload);
+
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-publishable-api-key": PUBLISHABLE_API_KEY,
       },
-      body: JSON.stringify({
-        promo_codes: [code],
-      }),
+      body: JSON.stringify(payload),
     });
 
     console.log("[applyPromoCode] Response status:", response.status);
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error("[applyPromoCode] Error response:", errorData);
-      throw new Error(errorData.message || "Failed to apply promo code");
+      const errorText = await response.text();
+      console.error("[applyPromoCode] Error response body:", errorText);
+      try {
+        const errorData = JSON.parse(errorText);
+        throw new Error(errorData.message || "Failed to apply promo code");
+      } catch (e) {
+        throw new Error(`Failed to apply promo code: ${response.status} ${errorText}`);
+      }
     }
 
     // After applying promo code, fetches full cart with all fields
     const fullCart = await getCart(cartId);
-    console.log("[applyPromoCode] Success, promotions:", fullCart?.promotions?.length || 0);
+    console.log("[applyPromoCode] AFTER - Items:", fullCart?.items?.length || 0,
+      "Item quantities:", fullCart?.items?.map(i => ({ id: i.id, qty: i.quantity })) || []);
+    console.log("[applyPromoCode] AFTER - Promotions:", fullCart?.promotions?.length || 0,
+      "Codes:", fullCart?.promotions?.map(p => p.code) || []);
+    console.log("[applyPromoCode] AFTER - Total:", fullCart?.total || 0);
+    console.log("[applyPromoCode] ========== END ==========");
     return fullCart;
   } catch (error) {
-    console.error("[applyPromoCode] Error:", error);
+    console.error("[applyPromoCode] Exception:", error);
     throw error;
   }
 }
 
 export async function removePromoCode(cartId: string, code: string) {
   try {
-    console.log("[removePromoCode] Removing code:", code, "from cart:", cartId);
+    console.log("[removePromoCode] ========== START ==========");
+    console.log("[removePromoCode] Cart ID:", cartId, "Code:", code);
 
-    const response = await fetch(`${MEDUSA_BACKEND_URL}/store/carts/${cartId}/promotions`, {
+    const url = `${MEDUSA_BACKEND_URL}/store/carts/${cartId}/promotions`;
+    const payload = { promo_codes: [code] };
+
+    console.log("[removePromoCode] Sending DELETE request:", url, payload);
+
+    const response = await fetch(url, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
         "x-publishable-api-key": PUBLISHABLE_API_KEY,
       },
-      body: JSON.stringify({
-        promo_codes: [code],
-      }),
+      body: JSON.stringify(payload),
     });
 
+    console.log("[removePromoCode] Response status:", response.status);
+
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error("[removePromoCode] Error response:", errorData);
-      throw new Error(errorData.message || "Failed to remove promo code");
+      const errorText = await response.text();
+      console.error("[removePromoCode] Error response body:", errorText);
+      try {
+        const errorData = JSON.parse(errorText);
+        throw new Error(errorData.message || "Failed to remove promo code");
+      } catch (e) {
+        throw new Error(`Failed to remove promo code: ${response.status} ${errorText}`);
+      }
     }
 
+    // Fetch cart AFTER removal to get updated state
     const fullCart = await getCart(cartId);
-    console.log("[removePromoCode] Success, promotions:", fullCart?.promotions?.length || 0);
+    console.log("[removePromoCode] AFTER - Items:", fullCart?.items?.length || 0,
+      "Promotions:", fullCart?.promotions?.length || 0,
+      "Codes:", fullCart?.promotions?.map(p => p.code) || [],
+      "Total:", fullCart?.total || 0);
+    console.log("[removePromoCode] ========== END ==========");
     return fullCart;
   } catch (error) {
-    console.error("[removePromoCode] Error:", error);
+    console.error("[removePromoCode] Exception:", error);
     throw error;
   }
 }

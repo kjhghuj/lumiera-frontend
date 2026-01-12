@@ -19,12 +19,12 @@ const nextConfig: NextConfig = {
       {
         protocol: "http",
         hostname: "localhost",
-        port: "9000",
+        port: "9030",
       },
       {
         protocol: "http",
         hostname: "127.0.0.1",
-        port: "9000",
+        port: "9030",
       },
       {
         // Allow any HTTPS images
@@ -36,9 +36,7 @@ const nextConfig: NextConfig = {
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-  experimental: {
-    optimizeCss: false,
-  },
+
 };
 
 export default nextConfig;

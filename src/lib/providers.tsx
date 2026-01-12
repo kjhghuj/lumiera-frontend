@@ -142,26 +142,31 @@ export function Providers({ children }: ProvidersProps) {
         //    UNLESS we already have a saved cart in metadata.
         //    (Simpler: User's saved cart takes precedence. Or merge? Merging is complex. Let's start with User Saved Cart wins, or claiming local if user has none.)
 
+
+        console.log("[initCart] START. Region:", region?.id, "AuthLoading:", authLoading, "User:", user?.id);
+
+        // 1. If Logged In: Check Metadata for active_cart_id
         if (user) {
           const userMetadata = user.metadata || {};
           const savedCartId = userMetadata.active_cart_id as string;
+          console.log("[initCart] User logged in. Metadata cart ID:", savedCartId);
 
           if (savedCartId) {
-            console.log("[initCart] Found saved cart in profile:", savedCartId);
+            console.log("[initCart] Fetching saved cart from profile:", savedCartId);
             const savedCart = await getCart(savedCartId);
 
             if (savedCart && !savedCart.completed_at) {
-              // We found a valid saved cart. Use it.
+              console.log("[initCart] Valid saved cart found. Using it.");
               currentCart = savedCart;
               localStorage.setItem(CART_ID_KEY, savedCart.id);
             } else {
-              // Saved cart is invalid/completed. Clean up metadata?
-              // (We'll update metadata when we create/claim a new one below)
+              console.log("[initCart] Saved cart is invalid or completed.");
             }
           }
 
           // If we still don't have a cart, but have a local one, try to claim it
           if (!currentCart && cartIdToFetch) {
+            console.log("[initCart] No user cart. Checking local cart to claim:", cartIdToFetch);
             const localCart = await getCart(cartIdToFetch);
             if (localCart && !localCart.completed_at) {
               console.log("[initCart] Claiming local cart for user");
@@ -173,14 +178,18 @@ export function Providers({ children }: ProvidersProps) {
               // Save to metadata
               await updateCustomerMetadata({ ...user.metadata, active_cart_id: localCart.id });
               currentCart = localCart;
+            } else {
+              console.log("[initCart] Local cart invalid/completed.");
             }
           }
         }
 
         // 4. If still no currentCart (Guest or User with no carts), try generic local storage fetch (Guest)
         if (!currentCart && cartIdToFetch) {
+          console.log("[initCart] Guest mode or no user cart. Fetching local cart:", cartIdToFetch);
           const localCart = await getCart(cartIdToFetch);
           if (localCart && !localCart.completed_at) {
+            console.log("[initCart] Local cart valid. Using it.");
             currentCart = localCart;
             // If user logged in (and flow reached here), ensure it's owned and saved
             if (user) {
@@ -192,15 +201,17 @@ export function Providers({ children }: ProvidersProps) {
               await updateCustomerMetadata({ ...user.metadata, active_cart_id: localCart.id });
             }
           } else {
+            console.log("[initCart] Local cart invalid/not found. Removing from localStorage.");
             localStorage.removeItem(CART_ID_KEY);
           }
         }
 
         // 5. Final fallback: Create new cart
         if (!currentCart) {
-          console.log("[initCart] Creating new cart");
+          console.log("[initCart] Creating new cart (Fallback)");
           const newCart = await createCart(region.id);
           if (newCart) {
+            console.log("[initCart] New cart created:", newCart.id);
             currentCart = newCart;
             localStorage.setItem(CART_ID_KEY, newCart.id);
 
@@ -361,10 +372,12 @@ export function Providers({ children }: ProvidersProps) {
   const removePromoCodeHandler = useCallback(
     async (code: string): Promise<boolean> => {
       if (!cart?.id) return false;
+      console.log("[Provider] removePromoCodeHandler - Current cart items:", cart?.items?.length || 0);
       setCartLoading(true);
       try {
         const updatedCart = await removePromoCode(cart.id, code);
         if (updatedCart) {
+          console.log("[Provider] removePromoCodeHandler - Updated cart items:", updatedCart?.items?.length || 0);
           setCart(updatedCart);
           return true;
         }
@@ -382,11 +395,13 @@ export function Providers({ children }: ProvidersProps) {
   const applyBetterCouponHandler = useCallback(
     async (code: string): Promise<{ success: boolean; message: string }> => {
       if (!cart?.id) return { success: false, message: "Cart not found" };
+      console.log("[Provider] applyBetterCouponHandler - Current cart items:", cart?.items?.length || 0);
       setCartLoading(true);
       try {
         const updatedCart = await applyPromoCode(cart.id, code);
         if (!updatedCart) return { success: false, message: "Invalid promo code" };
 
+        console.log("[Provider] applyBetterCouponHandler - Updated cart items:", updatedCart?.items?.length || 0);
         // Simple check: if we got a cart back, assume success for now or check promotions array
         setCart(updatedCart);
         return { success: true, message: "Coupon applied!" };
