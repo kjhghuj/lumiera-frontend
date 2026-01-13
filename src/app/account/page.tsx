@@ -537,8 +537,15 @@ function AccountContent() {
     const [couponCode, setCouponCode] = useState("");
     const [redeeming, setRedeeming] = useState(false);
     const [redeemMessage, setRedeemMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+    const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
     const collectedCoupons: string[] = (user?.metadata?.coupons as string[]) || [];
+
+    const handleCopy = (code: string) => {
+      navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(null), 2000); // Reset after 2 seconds
+    };
 
     const handleRedeem = async () => {
       if (!couponCode.trim()) return;
@@ -647,10 +654,10 @@ function AccountContent() {
 
                   <div className="pr-4">
                     <button
-                      onClick={() => navigator.clipboard.writeText(code)}
-                      className="text-xs text-charcoal-light hover:text-charcoal underline"
+                      onClick={() => handleCopy(code)}
+                      className={`text-xs uppercase tracking-widest transition-colors ${copiedCode === code ? "text-green-600 font-bold" : "text-charcoal-light hover:text-charcoal underline"}`}
                     >
-                      Copy
+                      {copiedCode === code ? "Copied!" : "Copy"}
                     </button>
                   </div>
                 </div>
