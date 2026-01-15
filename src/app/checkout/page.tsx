@@ -189,9 +189,12 @@ function CheckoutForm() {
 
       if (completeData.type === "order" && completeData.data) {
         // Success!
-        await refreshCart(); // Clear cart in context
-        // Redirect with query params
-        router.push(`/order/confirmed?success=true&order=${completeData.data.display_id || completeData.data.id}&email=${encodeURIComponent(billingData.email)}`);
+        // Redirect FIRST, then refresh cart to avoid re-rendering issues causing navigation aborts
+        const redirectUrl = `/order/confirmed?success=true&order=${completeData.data.display_id || completeData.data.id}&email=${encodeURIComponent(billingData.email)}`;
+        router.push(redirectUrl);
+
+        // Refresh cart afterwards (no await needed for navigation)
+        refreshCart().catch(err => console.error("Background cart refresh failed:", err));
       } else if (completeData.type === "cart") {
         // Should not happen if payment succeeded, but Medusa flows can be complex.
         // If error, it usually throws.
