@@ -27,6 +27,8 @@ export default function OrderConfirmedPage() {
   const router = useRouter();
   const [orderId, setOrderId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const [firstName, setFirstName] = useState<string>("Customer");
+  const [lastName, setLastName] = useState<string>("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
@@ -38,10 +40,14 @@ export default function OrderConfirmedPage() {
     const success = urlParams.get("success") === "true";
     const orderNum = urlParams.get("order");
     const userEmail = urlParams.get("email");
+    const userFirstName = urlParams.get("first_name");
+    const userLastName = urlParams.get("last_name");
 
     if (success && orderNum) {
       setOrderId(orderNum);
       if (userEmail) setEmail(userEmail);
+      if (userFirstName) setFirstName(userFirstName);
+      if (userLastName) setLastName(userLastName);
     }
     // Artificial small delay for smooth transition
     setTimeout(() => setLoading(false), 500);
@@ -65,8 +71,8 @@ export default function OrderConfirmedPage() {
         body: JSON.stringify({
           email: email,
           password: password,
-          first_name: "Customer", // Fallback, usually we'd pass name too
-          last_name: "",
+          first_name: firstName,
+          last_name: lastName,
         })
       });
 
@@ -135,7 +141,7 @@ export default function OrderConfirmedPage() {
             <Link href="/shop" className="bg-charcoal text-white px-8 py-4 rounded-full hover:bg-charcoal-light transition-colors font-medium min-w-[200px]">
               Continue Shopping
             </Link>
-            <Link href="/account" className="bg-white border border-gray-200 text-charcoal px-8 py-4 rounded-full hover:border-charcoal transition-colors font-medium min-w-[200px]">
+            <Link href={`/order/lookup?order=${orderId}&email=${encodeURIComponent(email || "")}`} className="bg-white border border-gray-200 text-charcoal px-8 py-4 rounded-full hover:border-charcoal transition-colors font-medium min-w-[200px]">
               View Order Details
             </Link>
           </div>

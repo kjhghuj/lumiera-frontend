@@ -193,7 +193,7 @@ function CheckoutForm() {
       if (orderData) {
         // Success!
         // Redirect FIRST, then refresh cart to avoid re-rendering issues causing navigation aborts
-        const redirectUrl = `/order/confirmed?success=true&order=${orderData.display_id || orderData.id}&email=${encodeURIComponent(billingData.email)}`;
+        const redirectUrl = `/order/confirmed?success=true&order=${orderData.display_id || orderData.id}&email=${encodeURIComponent(billingData.email)}&first_name=${encodeURIComponent(billingData.firstName)}&last_name=${encodeURIComponent(billingData.lastName)}`;
         console.log("[Checkout] Redirecting to:", redirectUrl);
         router.push(redirectUrl);
 
