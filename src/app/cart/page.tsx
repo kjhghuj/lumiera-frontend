@@ -535,6 +535,21 @@ function OrderSummary({
         Order Summary
       </h2>
 
+      {/* Shipping Selector (Mock for UI requirement) */}
+      <div className="mb-6 pb-6 border-b border-gray-200">
+        <label className="block text-sm font-medium text-charcoal mb-3">Shipping Method</label>
+        <div className="flex items-center gap-3 p-3 bg-white border border-terracotta rounded-lg cursor-default">
+          <div className="flex items-center justify-center w-5 h-5 rounded-full border border-terracotta">
+            <div className="w-2.5 h-2.5 rounded-full bg-terracotta"></div>
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-medium text-charcoal">Standard Delivery</div>
+            <div className="text-xs text-charcoal-light">3-5 Business Days</div>
+          </div>
+          <div className="text-sm font-medium text-green-600">Free</div>
+        </div>
+      </div>
+
       <div className="space-y-4 text-sm">
         <div className="flex justify-between">
           <span className="text-charcoal-light">
@@ -557,7 +572,7 @@ function OrderSummary({
         <div className="flex justify-between">
           <span className="text-charcoal-light">Shipping</span>
           <span className="text-charcoal font-medium">
-            {shipping !== null ? formatPrice(shipping, currencyCode) : 'Calculated at checkout'}
+            <span className="text-green-600">Free</span>
           </span>
         </div>
 
@@ -645,11 +660,18 @@ export default function CartPage() {
       // Check if already applied to avoid loop
       const alreadyApplied = cart.promotions?.some((p: any) => p.code === codeParam.toUpperCase());
       if (!alreadyApplied) {
-        console.log("Auto-applying coupon from URL:", codeParam);
         applyBetterCoupon(codeParam.toUpperCase());
       }
     }
   }, [searchParams, cart, cartLoading, applyBetterCoupon]);
+
+  // Auto-reset if cart is completed (fixes "Cart already completed" stuck state)
+  const { refreshCart } = useCart();
+  useEffect(() => {
+    if (cart && cart.completed_at) {
+      refreshCart();
+    }
+  }, [cart, refreshCart]);
 
   const currencyCode = cart?.currency_code?.toUpperCase() || region?.currency_code?.toUpperCase() || "GBP";
 

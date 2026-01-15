@@ -134,6 +134,7 @@ export const FOOTER_LINKS = {
     { name: "Contact", href: "/contact" },
   ],
   support: [
+    { name: "Track My Order", href: "/order/lookup" },
     { name: "Shipping", href: "/shipping" },
     { name: "Returns", href: "/returns" },
     { name: "FAQ", href: "/faq" },

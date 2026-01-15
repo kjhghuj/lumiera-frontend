@@ -36,7 +36,14 @@ const nextConfig: NextConfig = {
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-
+  async rewrites() {
+    return [
+      {
+        source: '/api/medusa/:path*',
+        destination: `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || 'http://localhost:9030'}/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
