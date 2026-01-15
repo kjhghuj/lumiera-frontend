@@ -187,10 +187,14 @@ function CheckoutForm() {
       const completeData = await completeResponse.json();
       console.log("[Checkout] Order completed:", completeData);
 
-      if (completeData.type === "order" && completeData.data) {
+      // Support both Medusa v1 ({ type: "order", data: ... }) and v2/direct ({ order: ... }) response formats
+      const orderData = completeData.order || (completeData.type === "order" ? completeData.data : null);
+
+      if (orderData) {
         // Success!
         // Redirect FIRST, then refresh cart to avoid re-rendering issues causing navigation aborts
-        const redirectUrl = `/order/confirmed?success=true&order=${completeData.data.display_id || completeData.data.id}&email=${encodeURIComponent(billingData.email)}`;
+        const redirectUrl = `/order/confirmed?success=true&order=${orderData.display_id || orderData.id}&email=${encodeURIComponent(billingData.email)}`;
+        console.log("[Checkout] Redirecting to:", redirectUrl);
         router.push(redirectUrl);
 
         // Refresh cart afterwards (no await needed for navigation)
@@ -200,6 +204,7 @@ function CheckoutForm() {
         // If error, it usually throws.
         throw new Error("Cart completion returned cart status (payment failed?)");
       } else {
+        console.warn("[Checkout] Unrecognized completion response, fallback redirect to Account:", completeData);
         // Fallback success check
         await refreshCart();
         router.push("/account"); // Fallback
