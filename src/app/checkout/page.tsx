@@ -23,8 +23,8 @@ function CheckoutForm() {
   });
 
   const [billingData, setBillingData] = useState({
-    firstName: "",
-    lastName: "",
+    name: "", // Combined name
+    phone: "",
     email: "",
     address: "",
     city: "",
@@ -58,6 +58,11 @@ function CheckoutForm() {
     setError(null);
 
     try {
+      // Split name into first and last
+      const nameParts = billingData.name.trim().split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
       // 0.1 Update Cart with Email and Address (CRITICAL STEP)
       console.log("[Checkout] Updating cart with customer info...");
       const updateCartResponse = await fetch(`/api/medusa/store/carts/${cart.id}`, {
@@ -69,16 +74,18 @@ function CheckoutForm() {
         body: JSON.stringify({
           email: billingData.email,
           shipping_address: {
-            first_name: billingData.firstName,
-            last_name: billingData.lastName,
+            first_name: firstName,
+            last_name: lastName,
+            phone: billingData.phone,
             address_1: billingData.address,
             city: billingData.city,
             country_code: billingData.country,
             postal_code: billingData.postalCode,
           },
           billing_address: {
-            first_name: billingData.firstName,
-            last_name: billingData.lastName,
+            first_name: firstName,
+            last_name: lastName,
+            phone: billingData.phone,
             address_1: billingData.address,
             city: billingData.city,
             country_code: billingData.country,
@@ -148,8 +155,9 @@ function CheckoutForm() {
         payment_method: {
           card: cardElement,
           billing_details: {
-            name: `${billingData.firstName} ${billingData.lastName}`,
+            name: billingData.name,
             email: billingData.email,
+            phone: billingData.phone,
             address: {
               line1: billingData.address,
               city: billingData.city,
@@ -193,10 +201,15 @@ function CheckoutForm() {
       if (orderData) {
         // Success!
         // Redirect FIRST, then refresh cart to avoid re-rendering issues causing navigation aborts
-        const redirectUrl = `/order/confirmed?success=true&order=${orderData.display_id || orderData.id}&email=${encodeURIComponent(billingData.email)}&first_name=${encodeURIComponent(billingData.firstName)}&last_name=${encodeURIComponent(billingData.lastName)}`;
+        // Re-derive names for redirect
+        const namePartsRedirect = billingData.name.trim().split(" ");
+        const firstNameRedirect = namePartsRedirect[0] || "";
+        const lastNameRedirect = namePartsRedirect.length > 1 ? namePartsRedirect.slice(1).join(" ") : "";
+        
+        const redirectUrl = `/order/confirmed?success=true&order=${orderData.display_id || orderData.id}&email=${encodeURIComponent(billingData.email)}&first_name=${encodeURIComponent(firstNameRedirect)}&last_name=${encodeURIComponent(lastNameRedirect)}`;
         console.log("[Checkout] Redirecting to:", redirectUrl);
         router.push(redirectUrl);
-
+        
         // Refresh cart afterwards (no await needed for navigation)
         refreshCart().catch(err => console.error("Background cart refresh failed:", err));
       } else if (completeData.type === "cart") {
@@ -235,33 +248,33 @@ function CheckoutForm() {
 
       <form onSubmit={handleSubmit}>
         <div className="mb-8">
-          <h2 className="font-serif text-xl text-charcoal mb-4">Shipping Information</h2>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <h2 className="font-serif text-xl text-charcoal mb-4">Contact Information</h2>
+          <div className="space-y-4 mb-8">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">First Name</label>
+                <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Name</label>
                 <input
                   type="text"
-                  value={billingData.firstName}
-                  onChange={(e) => setBillingData({ ...billingData, firstName: e.target.value })}
+                  value={billingData.name}
+                  onChange={(e) => setBillingData({ ...billingData, name: e.target.value })}
                   className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-terracotta rounded-lg"
+                  placeholder="Full Name"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Last Name</label>
+                <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Phone Number</label>
                 <input
-                  type="text"
-                  value={billingData.lastName}
-                  onChange={(e) => setBillingData({ ...billingData, lastName: e.target.value })}
+                  type="tel"
+                  value={billingData.phone}
+                  onChange={(e) => setBillingData({ ...billingData, phone: e.target.value })}
                   className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-terracotta rounded-lg"
+                  placeholder="+1 (555) 000-0000"
                   required
                 />
               </div>
-            </div>
-
-            <div>
+             </div>
+             <div>
               <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Email</label>
               <input
                 type="email"
@@ -271,6 +284,11 @@ function CheckoutForm() {
                 required
               />
             </div>
+          </div>
+
+          <h2 className="font-serif text-xl text-charcoal mb-4">Shipping Address</h2>
+
+          <div className="space-y-4">
 
             <div>
               <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Address</label>
