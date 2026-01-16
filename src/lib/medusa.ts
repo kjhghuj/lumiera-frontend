@@ -44,6 +44,24 @@ export async function getProducts(regionId?: string, limit: number = 100) {
   }
 }
 
+export async function getProductsByIds(ids: string[], regionId?: string) {
+  try {
+    if (!ids || ids.length === 0) return [];
+
+    const { products } = await sdk.store.product.list({
+      id: ids,
+      region_id: regionId,
+      sales_channel_id: SALES_CHANNEL_ID || undefined,
+      fields: "*images,thumbnail",
+      limit: ids.length,
+    });
+    return products || [];
+  } catch (error) {
+    console.error("Error fetching products by IDs:", error);
+    return [];
+  }
+}
+
 export async function getProductByHandle(handle: string, regionId?: string) {
   try {
     const { products } = await sdk.store.product.list({

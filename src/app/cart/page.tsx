@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCart, useRegion } from "@/lib/providers";
-import { formatPrice, getProductById } from "@/lib/medusa";
+import { formatPrice, getProductById, getProductsByIds } from "@/lib/medusa";
 import { StoreCartLineItem } from "@/lib/types";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentRequestButtonElement, useStripe } from "@stripe/react-stripe-js";
@@ -69,7 +69,8 @@ function CartItem({
   onUpdateQuantity,
   onRemove,
   isUpdating,
-  regionId
+  regionId,
+  fallbackImage,
 }: {
   item: StoreCartLineItem;
   currencyCode: string;
@@ -77,6 +78,7 @@ function CartItem({
   onRemove: () => void;
   isUpdating: boolean;
   regionId?: string;
+  fallbackImage?: string | null;
 }) {
   const [imageError, setImageError] = useState(false);
   const [productImage, setProductImage] = useState<string | null>(null);
@@ -119,31 +121,11 @@ function CartItem({
         return;
       }
 
-      // Priority 3: Fetch product to get main image
-      const productId = item.product_id;
-      if (productId) {
-        // Check cache first to avoid repeated API calls
-        if (productImageCache[productId]) {
-          setProductImage(productImageCache[productId]);
-          setImageLoading(false);
-          return;
-        }
-
-        try {
-          const product = await getProductById(productId, regionId);
-          if (product) {
-            // Try product thumbnail first, then first image
-            const imageUrl = product.thumbnail || product.images?.[0]?.url;
-            if (imageUrl) {
-              productImageCache[productId] = imageUrl;
-              setProductImage(imageUrl);
-              setImageLoading(false);
-              return;
-            }
-          }
-        } catch (error) {
-          console.error("Failed to fetch product image:", error);
-        }
+      // Priority 3: Use fallback image passed from parent (batch fetched)
+      if (fallbackImage) {
+        setProductImage(fallbackImage);
+        setImageLoading(false);
+        return;
       }
 
       // Priority 4: No image found, will use placeholder
@@ -152,7 +134,7 @@ function CartItem({
     }
 
     resolveProductImage();
-  }, [item.thumbnail, item.variant, item.product_id, regionId]);
+  }, [item.thumbnail, item.variant, fallbackImage]);
 
   // Determine final image source with error handling
   const getImageSrc = () => {
@@ -782,6 +764,65 @@ function CartContent() {
   const searchParams = useSearchParams();
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
+  const [resolvedImages, setResolvedImages] = useState<Record<string, string>>({});
+
+  // Batch fetch missing product images
+  useEffect(() => {
+    async function fetchMissingImages() {
+      if (!cart?.items || !region?.id) return;
+
+      const idsToFetch: string[] = [];
+
+      cart.items.forEach((item) => {
+        const variant = item.variant as any;
+        const hasItemThumbnail = !!item.thumbnail;
+        const hasVariantImage = variant?.images && variant.images.length > 0;
+        const hasProductThumbnail = !!variant?.product?.thumbnail;
+        const hasProductImage = variant?.product?.images && variant.product.images.length > 0;
+        const hasCache = item.product_id && productImageCache[item.product_id];
+
+        if (!hasItemThumbnail && !hasVariantImage && !hasProductThumbnail && !hasProductImage && !hasCache && item.product_id) {
+            if (!idsToFetch.includes(item.product_id)) {
+                idsToFetch.push(item.product_id);
+            }
+        }
+      });
+
+      if (idsToFetch.length > 0) {
+        try {
+          const products = await getProductsByIds(idsToFetch, region.id);
+          const newResolved: Record<string, string> = {};
+
+          products.forEach((product: any) => {
+            const imageUrl = product.thumbnail || product.images?.[0]?.url;
+            if (imageUrl && product.id) {
+              productImageCache[product.id] = imageUrl;
+              newResolved[product.id] = imageUrl;
+            }
+          });
+
+          if (Object.keys(newResolved).length > 0) {
+            setResolvedImages(prev => ({ ...prev, ...newResolved }));
+          }
+        } catch (error) {
+          console.error("Failed to batch fetch product images:", error);
+        }
+      } else {
+        // Just sync cache to state for any items that might have been cached previously but not in state
+         const newResolved: Record<string, string> = {};
+         cart.items.forEach(item => {
+             if (item.product_id && productImageCache[item.product_id] && !resolvedImages[item.product_id]) {
+                 newResolved[item.product_id] = productImageCache[item.product_id];
+             }
+         });
+         if (Object.keys(newResolved).length > 0) {
+             setResolvedImages(prev => ({ ...prev, ...newResolved }));
+         }
+      }
+    }
+
+    fetchMissingImages();
+  }, [cart?.items, region?.id, resolvedImages]);
 
   // Auto-apply coupon from URL
   useEffect(() => {
@@ -893,6 +934,7 @@ function CartContent() {
                     onRemove={() => handleRemoveItem(item.id)}
                     isUpdating={updatingItemId === item.id}
                     regionId={region?.id}
+                    fallbackImage={item.product_id ? (resolvedImages[item.product_id] || productImageCache[item.product_id]) : null}
                   />
                 ))}
               </div>
