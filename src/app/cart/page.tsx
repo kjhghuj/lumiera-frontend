@@ -333,7 +333,7 @@ function getDiscountForCode(cart: any, code: string): number {
 }
 
 // Collapsible Coupon Section
-function CouponSection({
+export function CouponSection({
   cart,
   appliedCodes,
   currencyCode,
@@ -496,22 +496,35 @@ function CouponSection({
   );
 }
 
-function StripeWalletButton({ cart, amount, currency }: { cart: any, amount: number, currency: string }) {
+export function StripeWalletButton({ cart, amount, currency }: { cart: any, amount: number, currency: string }) {
   const stripe = useStripe();
   const [paymentRequest, setPaymentRequest] = useState<any>(null);
   const [canMakePayment, setCanMakePayment] = useState(false);
+  const [debugStatus, setDebugStatus] = useState<string>("Initializing...");
   const router = useRouter();
   const { refreshCart } = useCart();
 
   useEffect(() => {
-    if (!stripe || !cart) return;
+    if (!stripe) {
+      setDebugStatus("Stripe JS not loaded.");
+      return;
+    }
+    if (!cart) {
+      setDebugStatus("Cart data missing.");
+      return;
+    }
+
+    const countryCode = cart.region?.countries?.[0]?.iso_2?.toUpperCase() || 'US';
+    const currencyCode = (currency || 'usd').toLowerCase();
+
+    console.log("[StripeWalletButton] Init:", { country: countryCode, currency: currencyCode, amount });
 
     const pr = stripe.paymentRequest({
-      country: cart.region?.countries?.[0]?.iso_2?.toUpperCase() || 'GB',
-      currency: currency.toLowerCase(),
+      country: countryCode,
+      currency: currencyCode,
       total: {
         label: 'Total',
-        amount: amount, // Amount in lowest denomination (e.g. cents)
+        amount: amount > 0 ? amount : 0, // Amount in lowest denomination (e.g. cents)
       },
       requestPayerName: true,
       requestPayerEmail: true,
@@ -521,9 +534,14 @@ function StripeWalletButton({ cart, amount, currency }: { cart: any, amount: num
 
     // Check if the browser supports this payment method (Apple Pay / Google Pay)
     pr.canMakePayment().then((result) => {
+      console.log("[StripeWalletButton] canMakePayment result:", result);
       if (result) {
         setCanMakePayment(true);
         setPaymentRequest(pr);
+        setDebugStatus("Ready");
+      } else {
+        setCanMakePayment(false);
+        setDebugStatus("Stripe returned false (Check HTTPS/Card/Region)");
       }
     });
 
@@ -597,7 +615,27 @@ function StripeWalletButton({ cart, amount, currency }: { cart: any, amount: num
 
   }, [stripe, cart, amount, currency, refreshCart, router]);
 
-  if (!canMakePayment || !paymentRequest) return null;
+  if (!canMakePayment || !paymentRequest) {
+    // Development Fallback: Show where the button WOULD be if conditions were met
+    // Only show in development
+    if (process.env.NODE_ENV === "development") {
+      return (
+        <div className="mb-4 p-4 border-2 border-dashed border-gray-300 rounded-lg text-center bg-gray-50">
+          <p className="text-sm font-bold text-gray-500">Apple/Google Pay Placeholder</p>
+          <p className="text-xs text-gray-400 mt-1">{debugStatus}</p>
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-cream text-charcoal-light uppercase tracking-wider text-xs">Or pay with card</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div className="mb-4">
