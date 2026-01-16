@@ -1,4 +1,5 @@
 import Medusa from "@medusajs/js-sdk";
+import { cache } from "react";
 
 // Initialize Medusa client
 const MEDUSA_BACKEND_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://localhost:9000";
@@ -60,6 +61,13 @@ export async function getProductByHandle(handle: string, regionId?: string) {
     return null;
   }
 }
+
+export const getCachedProductByHandle = cache(async function (
+  handle: string,
+  regionId?: string
+) {
+  return getProductByHandle(handle, regionId);
+});
 
 export async function getProductById(id: string, regionId?: string) {
   try {

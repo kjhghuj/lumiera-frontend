@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getProductByHandle, getProducts, getRegion } from "@/lib/medusa";
+import { getCachedProductByHandle, getProducts, getRegion } from "@/lib/medusa";
 import ProductClient from "./ProductClient";
 
 export const revalidate = 60;
@@ -26,7 +26,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { handle } = await params;
   const region = await getRegion("gb");
-  const product = await getProductByHandle(handle, region?.id);
+  const product = await getCachedProductByHandle(handle, region?.id);
 
   if (!product) {
     return {
@@ -57,7 +57,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 export default async function ProductPage({ params }: ProductPageProps) {
   const { handle } = await params;
   const region = await getRegion("gb");
-  const product = await getProductByHandle(handle, region?.id);
+  const product = await getCachedProductByHandle(handle, region?.id);
 
   // Debug log to see API response
   if (product && handle === 'the-duo') {
