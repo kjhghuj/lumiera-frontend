@@ -69,15 +69,31 @@ export default function StripeWalletButton({ cart, amount, currency }: { cart: a
         // In robust app, we'd map fields carefully.
 
         // 2. Initialize Payment Session (if needed) and get Client Secret
-        const sessionRes = await fetch(`/api/checkout/${cart.id}/payment-sessions`, {
+        // Using Direct Medusa Backend Call
+        const BACKEND_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://localhost:9000";
+        const API_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "";
+
+        const sessionRes = await fetch(`${BACKEND_URL}/store/carts/${cart.id}/payment-sessions`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-publishable-api-key": API_KEY
+          },
           body: JSON.stringify({ provider_id: "pp_stripe_stripe" }),
         });
 
         if (!sessionRes.ok) throw new Error("Failed to init payment session");
+
+        // Medusa returns { cart: ... } usually
         const sessionData = await sessionRes.json();
-        const clientSecret = sessionData.client_secret;
+
+        // We need to find the payment session we just created/updated
+        const paymentSession = sessionData.cart?.payment_sessions?.find(
+          (s: any) => s.provider_id === "pp_stripe_stripe"
+        );
+        const clientSecret = paymentSession?.data?.client_secret;
+
+        if (!clientSecret) throw new Error("No client secret found in payment session");
 
         // 3. Confirm Payment
         const confirmResult = await stripe.confirmCardPayment(clientSecret, {
@@ -93,11 +109,11 @@ export default function StripeWalletButton({ cart, amount, currency }: { cart: a
         ev.complete('success');
 
         // 4. Complete Order in Medusa
-        const completeResponse = await fetch(`/api/medusa/store/carts/${cart.id}/complete`, {
+        const completeResponse = await fetch(`${BACKEND_URL}/store/carts/${cart.id}/complete`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-publishable-api-key": process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "",
+            "x-publishable-api-key": API_KEY,
           },
         });
 

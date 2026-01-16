@@ -171,3 +171,11 @@ Error fetching categories: TypeError: fetch failed
  GET /shop 200 in 118ms (compile: 11ms, render: 107ms)
  GET /checkout 200 in 1003ms (compile: 838ms, render: 165ms)
  GET /account 200 in 743ms (compile: 654ms, render: 89ms)
+Initiating Medusa client with default headers:
+ {
+  "accept": "application/json",
+  "content-type": "application/json",
+  "authorization": "<REDACTED>"
+}
+
+ GET /debug-stripe 200 in 4.8s (compile: 2.5s, render: 2.3s)
