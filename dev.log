@@ -1,0 +1,173 @@
+
+> storefront@0.1.0 dev
+> next dev -p 3030
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3030
+- Network:       http://192.168.0.2:3030
+
+✓ Starting...
+✓ Ready in 2.7s
+Initiating Medusa client with default headers:
+ {
+  "accept": "application/json",
+  "content-type": "application/json",
+  "authorization": "<REDACTED>"
+}
+
+Performing request to:
+ URL: http://localhost:9000/store/regions
+ Headers: {
+  "accept": "application/json",
+  "content-type": "application/json",
+  "x-medusa-locale": "",
+  "authorization": "<REDACTED>"
+}
+
+Initiating Medusa client with default headers:
+ {
+  "accept": "application/json",
+  "content-type": "application/json",
+  "authorization": "<REDACTED>"
+}
+
+Error fetching region: TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: AggregateError:
+      at ignore-listed frames {
+    code: 'ECONNREFUSED'
+  }
+}
+Performing request to:
+ URL: http://localhost:9000/store/collections
+ Headers: {
+  "accept": "application/json",
+  "content-type": "application/json",
+  "x-medusa-locale": "",
+  "authorization": "<REDACTED>"
+}
+
+Error fetching collections: TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: AggregateError:
+      at ignore-listed frames {
+    code: 'ECONNREFUSED'
+  }
+}
+Performing request to:
+ URL: http://localhost:9000/store/products?limit=4&fields=%2Avariants.calculated_price%2C%2Avariants.inventory_quantity%2C%2Acategories%2C%2Aimages
+ Headers: {
+  "accept": "application/json",
+  "content-type": "application/json",
+  "x-medusa-locale": "",
+  "authorization": "<REDACTED>"
+}
+
+Error fetching products: TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: AggregateError:
+      at ignore-listed frames {
+    code: 'ECONNREFUSED'
+  }
+}
+ GET / 200 in 2.7s (compile: 1869ms, render: 844ms)
+Performing request to:
+ URL: http://localhost:9000/store/regions
+ Headers: {
+  "accept": "application/json",
+  "content-type": "application/json",
+  "x-medusa-locale": "",
+  "authorization": "<REDACTED>"
+}
+
+Error fetching region: TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: AggregateError:
+      at ignore-listed frames {
+    code: 'ECONNREFUSED'
+  }
+}
+Performing request to:
+ URL: http://localhost:9000/store/products?limit=50&fields=%2Avariants.calculated_price%2C%2Avariants.inventory_quantity%2C%2Acategories%2C%2Aimages
+ Headers: {
+  "accept": "application/json",
+  "content-type": "application/json",
+  "x-medusa-locale": "",
+  "authorization": "<REDACTED>"
+}
+
+Performing request to:
+ URL: http://localhost:9000/store/product-categories?include_descendants_tree=true
+ Headers: {
+  "accept": "application/json",
+  "content-type": "application/json",
+  "x-medusa-locale": "",
+  "authorization": "<REDACTED>"
+}
+
+Error fetching products: TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: AggregateError:
+      at ignore-listed frames {
+    code: 'ECONNREFUSED'
+  }
+}
+Error fetching categories: TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: AggregateError:
+      at ignore-listed frames {
+    code: 'ECONNREFUSED'
+  }
+}
+ GET /shop 200 in 1175ms (compile: 970ms, render: 204ms)
+Performing request to:
+ URL: http://localhost:9000/store/regions
+ Headers: {
+  "accept": "application/json",
+  "content-type": "application/json",
+  "x-medusa-locale": "",
+  "authorization": "<REDACTED>"
+}
+
+Error fetching region: TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: AggregateError:
+      at ignore-listed frames {
+    code: 'ECONNREFUSED'
+  }
+}
+Performing request to:
+ URL: http://localhost:9000/store/products?limit=50&fields=%2Avariants.calculated_price%2C%2Avariants.inventory_quantity%2C%2Acategories%2C%2Aimages
+ Headers: {
+  "accept": "application/json",
+  "content-type": "application/json",
+  "x-medusa-locale": "",
+  "authorization": "<REDACTED>"
+}
+
+Performing request to:
+ URL: http://localhost:9000/store/product-categories?include_descendants_tree=true
+ Headers: {
+  "accept": "application/json",
+  "content-type": "application/json",
+  "x-medusa-locale": "",
+  "authorization": "<REDACTED>"
+}
+
+Error fetching products: TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: AggregateError:
+      at ignore-listed frames {
+    code: 'ECONNREFUSED'
+  }
+}
+Error fetching categories: TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: AggregateError:
+      at ignore-listed frames {
+    code: 'ECONNREFUSED'
+  }
+}
+ GET /shop 200 in 118ms (compile: 11ms, render: 107ms)
+ GET /checkout 200 in 1003ms (compile: 838ms, render: 165ms)
+ GET /account 200 in 743ms (compile: 654ms, render: 89ms)

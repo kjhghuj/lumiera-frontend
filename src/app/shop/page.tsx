@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { getProducts, getCategories, getRegion } from "@/lib/medusa";
-import { ProductCard } from "@/components";
-import ShopFilters from "./ShopFilters";
+import ShopFilters from "./components/ShopFilters";
+import { ShopHeader } from "./components/ShopHeader";
+import { ProductGrid } from "./components/ProductGrid";
 
 export const revalidate = 60;
 
@@ -58,20 +59,8 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
 
   return (
     <div className="pt-24 pb-16">
-      {/* Header */}
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mb-12">
-        <h1 className="font-serif text-4xl lg:text-5xl text-charcoal mb-4">
-          {category
-            ? category.charAt(0).toUpperCase() + category.slice(1).replace("-", " ")
-            : "Shop All"}
-        </h1>
-        <p className="text-charcoal-light max-w-2xl">
-          Explore our collection of premium wellness essentials, crafted with
-          body-safe materials and designed for your pleasure.
-        </p>
-      </div>
+      <ShopHeader category={category} />
 
-      {/* Filters */}
       <Suspense fallback={<div className="h-12" />}>
         <ShopFilters
           categories={categories}
@@ -81,31 +70,11 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
         />
       </Suspense>
 
-      {/* Product Grid */}
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                regionCurrency={region?.currency_code?.toUpperCase() || "GBP"}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-20">
-            <p className="text-charcoal-light text-lg mb-4">
-              {category
-                ? "No products found in this category."
-                : "No products available yet."}
-            </p>
-            <p className="text-sm text-gray-400">
-              Connect your Medusa backend to display products.
-            </p>
-          </div>
-        )}
-      </div>
+      <ProductGrid
+        products={filteredProducts}
+        region={region}
+        category={category}
+      />
     </div>
   );
 }

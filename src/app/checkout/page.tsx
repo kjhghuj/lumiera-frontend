@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { useCart } from "@/lib/providers";
+import { CheckoutError } from "./components/CheckoutError";
+import { ContactForm } from "./components/ContactForm";
+import { SubmitButton } from "./components/SubmitButton";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_KEY || "");
 
@@ -233,162 +236,15 @@ function CheckoutForm() {
 
   return (
     <>
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
-          {error}
-          <button
-            onClick={() => setError(null)}
-            type="button"
-            className="mt-4 text-red-600 hover:text-red-700 underline block"
-          >
-            Try Again
-          </button>
-        </div>
-      )}
-
+      <CheckoutError error={error} onClear={() => setError(null)} />
       <form onSubmit={handleSubmit}>
-        <div className="mb-8">
-          <h2 className="font-serif text-xl text-charcoal mb-4">Contact Information</h2>
-          <div className="space-y-4 mb-8">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Name</label>
-                <input
-                  type="text"
-                  value={billingData.name}
-                  onChange={(e) => setBillingData({ ...billingData, name: e.target.value })}
-                  className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-terracotta rounded-lg"
-                  placeholder="Full Name"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Phone Number</label>
-                <input
-                  type="tel"
-                  value={billingData.phone}
-                  onChange={(e) => setBillingData({ ...billingData, phone: e.target.value })}
-                  className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-terracotta rounded-lg"
-                  placeholder="+1 (555) 000-0000"
-                  required
-                />
-              </div>
-             </div>
-             <div>
-              <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Email</label>
-              <input
-                type="email"
-                value={billingData.email}
-                onChange={(e) => setBillingData({ ...billingData, email: e.target.value })}
-                className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-terracotta rounded-lg"
-                required
-              />
-            </div>
-          </div>
-
-          <h2 className="font-serif text-xl text-charcoal mb-4">Shipping Address</h2>
-
-          <div className="space-y-4">
-
-            <div>
-              <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Address</label>
-              <textarea
-                value={billingData.address}
-                onChange={(e) => setBillingData({ ...billingData, address: e.target.value })}
-                className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-terracotta min-h-[80px] rounded-lg"
-                rows={2}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">City</label>
-                <input
-                  type="text"
-                  value={billingData.city}
-                  onChange={(e) => setBillingData({ ...billingData, city: e.target.value })}
-                  className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-terracotta rounded-lg"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Postal Code</label>
-                <input
-                  type="text"
-                  value={billingData.postalCode}
-                  onChange={(e) => setBillingData({ ...billingData, postalCode: e.target.value })}
-                  className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-terracotta rounded-lg"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Country</label>
-              <select
-                value={billingData.country}
-                onChange={(e) => setBillingData({ ...billingData, country: e.target.value })}
-                className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-terracotta rounded-lg"
-                required
-              >
-                <option value="">Select Country</option>
-                <option value="gb">United Kingdom</option>
-                <option value="us">United States</option>
-                <option value="de">Germany</option>
-                <option value="fr">France</option>
-              </select>
-            </div>
-          </div>
-
-          <h2 className="font-serif text-xl text-charcoal mb-4 mt-8">Payment Details</h2>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Card Information</label>
-              <div className="w-full border border-gray-200 px-4 py-3 focus-within:border-terracotta rounded-lg bg-white">
-                <CardElement
-                  options={{
-                    style: {
-                      base: {
-                        fontSize: '16px',
-                        color: '#2c2c2c',
-                        '::placeholder': { color: '#9ca3af' },
-                      },
-                    },
-                  }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Cardholder Name</label>
-              <input
-                type="text"
-                value={cardData.name}
-                onChange={(e) => setCardData({ ...cardData, name: e.target.value })}
-                className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-terracotta rounded-lg"
-                placeholder="John Doe"
-                required
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={processing || !stripe || !elements}
-            className="w-full mt-8 bg-terracotta text-white py-4 rounded-full hover:bg-terracotta-dark disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium text-sm uppercase tracking-wider"
-          >
-            {processing ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>Processing...</span>
-              </>
-            ) : (
-              "Complete Payment"
-            )}
-          </button>
-        </div>
+        <ContactForm
+          billingData={billingData}
+          setBillingData={setBillingData}
+          cardData={cardData}
+          setCardData={setCardData}
+        />
+        <SubmitButton processing={processing} disabled={processing || !stripe || !elements} />
       </form>
     </>
   );

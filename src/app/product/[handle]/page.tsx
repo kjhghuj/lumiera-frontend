@@ -1,7 +1,8 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProductByHandle, getProducts, getRegion } from "@/lib/medusa";
-import ProductClient from "./ProductClient";
+import ProductClient from "./components/ProductClient";
+import { Breadcrumb } from "./components/Breadcrumb";
 
 export const revalidate = 60;
 
@@ -90,35 +91,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
   return (
     <div className="pt-24 pb-16 bg-white min-h-screen">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Breadcrumb */}
-        <nav className="mb-8 text-sm">
-          <ol className="flex items-center gap-2 text-charcoal-light">
-            <li>
-              <a href="/" className="hover:text-charcoal transition-colors">Home</a>
-            </li>
-            <li>/</li>
-            <li>
-              <a href="/shop" className="hover:text-charcoal transition-colors">Shop</a>
-            </li>
-            {category && (
-              <>
-                <li>/</li>
-                <li>
-                  <a
-                    href={`/shop?category=${category.handle}`}
-                    className="hover:text-charcoal transition-colors"
-                  >
-                    {category.name}
-                  </a>
-                </li>
-              </>
-            )}
-            <li>/</li>
-            <li className="text-charcoal truncate max-w-[200px]">{product.title}</li>
-          </ol>
-        </nav>
-
-        {/* Product Content - Client Component */}
+        <Breadcrumb product={product} category={category} />
         <ProductClient
           product={product}
           images={images}
