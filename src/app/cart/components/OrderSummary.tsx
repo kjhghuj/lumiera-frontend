@@ -109,7 +109,9 @@ export default function OrderSummary({
 
       {/* Wallet Buttons */}
       {!isLoading && itemCount > 0 && (
-         <StripeWalletButton cart={cart} amount={total} currency={currencyCode} />
+        <div className="mt-4">
+          <StripeWalletButton cart={cart} amount={total} currency={currencyCode} />
+        </div>
       )}
 
       {/* Continue Shopping */}
