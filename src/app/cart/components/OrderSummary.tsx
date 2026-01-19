@@ -30,11 +30,6 @@ export default function OrderSummary({
         Order Summary
       </h2>
 
-      {/* Wallet Buttons */}
-      {!isLoading && itemCount > 0 && (
-         <StripeWalletButton cart={cart} amount={total} currency={currencyCode} />
-      )}
-
       {/* Shipping Selector (Mock for UI requirement) */}
       <div className="mb-6 pb-6 border-b border-gray-200">
         <label className="block text-sm font-medium text-charcoal mb-3">Shipping Method</label>
@@ -111,6 +106,13 @@ export default function OrderSummary({
           )}
         </button>
       </Link>
+
+      {/* Wallet Buttons */}
+      {!isLoading && itemCount > 0 && (
+        <div className="mt-4">
+          <StripeWalletButton cart={cart} amount={total} currency={currencyCode} />
+        </div>
+      )}
 
       {/* Continue Shopping */}
       <Link

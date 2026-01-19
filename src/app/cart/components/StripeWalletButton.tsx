@@ -69,15 +69,31 @@ export default function StripeWalletButton({ cart, amount, currency }: { cart: a
         // In robust app, we'd map fields carefully.
 
         // 2. Initialize Payment Session (if needed) and get Client Secret
-        const sessionRes = await fetch(`/api/checkout/${cart.id}/payment-sessions`, {
+        // Using Direct Medusa Backend Call
+        const BACKEND_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL || "http://localhost:9000";
+        const API_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "";
+
+        const sessionRes = await fetch(`${BACKEND_URL}/store/carts/${cart.id}/payment-sessions`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-publishable-api-key": API_KEY
+          },
           body: JSON.stringify({ provider_id: "pp_stripe_stripe" }),
         });
 
         if (!sessionRes.ok) throw new Error("Failed to init payment session");
+
+        // Medusa returns { cart: ... } usually
         const sessionData = await sessionRes.json();
-        const clientSecret = sessionData.client_secret;
+
+        // We need to find the payment session we just created/updated
+        const paymentSession = sessionData.cart?.payment_sessions?.find(
+          (s: any) => s.provider_id === "pp_stripe_stripe"
+        );
+        const clientSecret = paymentSession?.data?.client_secret;
+
+        if (!clientSecret) throw new Error("No client secret found in payment session");
 
         // 3. Confirm Payment
         const confirmResult = await stripe.confirmCardPayment(clientSecret, {
@@ -93,11 +109,11 @@ export default function StripeWalletButton({ cart, amount, currency }: { cart: a
         ev.complete('success');
 
         // 4. Complete Order in Medusa
-        const completeResponse = await fetch(`/api/medusa/store/carts/${cart.id}/complete`, {
+        const completeResponse = await fetch(`${BACKEND_URL}/store/carts/${cart.id}/complete`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-publishable-api-key": process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "",
+            "x-publishable-api-key": API_KEY,
           },
         });
 
@@ -123,13 +139,26 @@ export default function StripeWalletButton({ cart, amount, currency }: { cart: a
   }, [stripe, cart, amount, currency, refreshCart, router]);
 
   if (!canMakePayment || !paymentRequest) {
-    // Development Fallback: Show where the button WOULD be if conditions were met
-    // Only show in development
+    // Development Fallback: Show a realistic Mock Button for layout verification
+    // Only show in development when real payment request is not available
     if (process.env.NODE_ENV === "development") {
       return (
-        <div className="mb-4 p-4 border-2 border-dashed border-gray-300 rounded-lg text-center bg-gray-50">
-          <p className="text-sm font-bold text-gray-500">Apple/Google Pay Placeholder</p>
-          <p className="text-xs text-gray-400 mt-1">{debugStatus}</p>
+        <div className="mb-4">
+          <button
+            onClick={() => console.log("[Mock] Payment Initiated")}
+            className="w-full h-[44px] bg-black hover:bg-gray-800 text-white rounded-[4px] flex items-center justify-center gap-2 transition-colors shadow-sm"
+            type="button"
+          >
+            <span className="font-medium text-[16px] -tracking-[0.2px]">Pay with</span>
+            {/* Apple Logo Mock */}
+            <svg viewBox="0 0 32 32" className="h-5 w-auto fill-current">
+              <path d="M19.6 11.2c-.7 1.1-1.9 1.8-3.1 1.7-.3-1.4.5-2.7 1.5-3.6 1.1-.9 2.4-1.6 2.7-.2.1.8-.4 1.5-1.1 2.1zm2.3 2.1c-1.6-.1-3 .9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6.1-3.2 1-4 2.5-1.8 3-1.5 8.9 2 10.9 1.1.7 2.5.3 3.4-.1.9-.4 2.2-.4 3.1.1.9.4 2 .8 3.1 0 1.2-.5 1.7-1.3 2.3-2.1-2.1-1-3.4-4.3-1.4-7.4z" />
+            </svg>
+            <span className="mx-1">/</span>
+            {/* Google G Logo Mock */}
+            <span className="font-bold text-[16px]">Google Pay</span>
+          </button>
+
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-200"></div>
