@@ -1,107 +1,372 @@
+"use client";
+
 import { notFound } from "next/navigation";
+import React, { useState, useEffect } from "react";
 import ImageWithFallback from "@/components/ImageWithFallback";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { ARTICLES } from "@/lib/constants";
+import {
+  Share2,
+  Facebook,
+  Twitter,
+  Link as LinkIcon,
+  ArrowRight,
+} from "lucide-react";
+import { ARTICLES, PRODUCTS } from "@/lib/constants";
+import { Product, Article } from "@/lib/constants";
 
 interface ArticlePageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  return ARTICLES.map((article) => ({
-    slug: article.slug,
-  }));
-}
+// --- SUB-COMPONENTS ---
 
-export default async function ArticlePage({ params }: ArticlePageProps) {
-  const { slug } = await params;
+// Compact Sidebar Design
+const StickySidebar: React.FC<{ product: Product | undefined }> = ({
+  product,
+}) => {
+  if (!product) return null;
+  return (
+    <div className="sticky top-32 w-full animate-fade-in-up">
+      <div className="bg-white border border-gray-100 p-5 rounded-sm shadow-sm">
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-50">
+          <span className="text-[9px] uppercase tracking-[0.2em] text-terracotta font-bold">
+            Featured Item
+          </span>
+        </div>
+
+        <Link href={`/product/${product.id}`} className="group block">
+          {/* Aspect Ratio 4/5 to match main product images, but in a narrower column */}
+          <div className="aspect-[4/5] bg-[#F9F8F6] mb-4 overflow-hidden rounded-sm relative">
+            <ImageWithFallback
+              src={product.images[0]}
+              alt={product.name}
+              fill
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+          </div>
+
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h4 className="font-serif text-lg text-charcoal group-hover:text-terracotta transition-colors leading-tight">
+                {product.name}
+              </h4>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-1">
+                {product.category}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-terracotta font-bold text-sm">
+                €{product.price.toFixed(2)}
+              </p>
+            </div>
+          </div>
+
+          <button className="w-full bg-charcoal text-white py-3 text-[10px] uppercase tracking-[0.2em] font-bold hover:bg-terracotta transition-colors shadow-sm">
+            View Details
+          </button>
+        </Link>
+      </div>
+    </div>
+  );
+};
+
+const InlineProductBlock: React.FC<{ product: Product }> = ({ product }) => (
+  <div className="my-10 bg-[#F9F8F6] p-6 rounded-sm border border-gray-100 lg:hidden shadow-sm">
+    <p className="text-xs font-serif italic text-charcoal-light mb-4 border-b border-gray-200 pb-2">
+      &quot;We recommend pairing this practice with...&quot;
+    </p>
+    <div className="flex gap-4">
+      <div className="w-24 h-24 bg-white flex-shrink-0 rounded-sm overflow-hidden border border-gray-100 relative">
+        <ImageWithFallback
+          src={product.images[0]}
+          alt={product.name}
+          fill
+          className="object-cover"
+        />
+      </div>
+      <div className="flex flex-col justify-center flex-1">
+        <h4 className="font-serif text-lg text-charcoal leading-tight mb-1">
+          {product.name}
+        </h4>
+        <p className="text-terracotta text-sm font-bold mb-3">
+          €{product.price.toFixed(2)}
+        </p>
+        <Link
+          href={`/product/${product.id}`}
+          className="inline-block text-[10px] uppercase tracking-widest font-bold text-charcoal border border-charcoal text-center py-2 px-4 hover:bg-charcoal hover:text-white transition-colors"
+        >
+          View Product
+        </Link>
+      </div>
+    </div>
+  </div>
+);
+
+export default function ArticlePage({ params }: ArticlePageProps) {
+  // Use React.use() to unwrap params if needed, but since it's a Promise in Next.js 15+ we need to await it component-level or use a hook.
+  // However, Next.js generic pages are server components by default, but we marked this 'use client' for scroll effects.
+  // In 'use client' components, passing params as props directly works if the parent passes them resolved, BUT app router passes them as Promise.
+  // A safe pattern in client components is using `use` from React or simply await in a server wrapper.
+  // For simplicity here, we'll assume we need to unwrap it.
+  const resolvedParams = React.use(params);
+  const { slug } = resolvedParams;
+
   const article = ARTICLES.find((a) => a.slug === slug);
+  const [readingProgress, setReadingProgress] = useState(0);
+  const [showMobileSticky, setShowMobileSticky] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const totalScroll = document.documentElement.scrollTop;
+      const windowHeight =
+        document.documentElement.scrollHeight -
+        document.documentElement.clientHeight;
+      if (windowHeight === 0) return;
+      const progress = totalScroll / windowHeight;
+      setReadingProgress(progress * 100);
+      setShowMobileSticky(progress > 0.25);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   if (!article) {
     notFound();
   }
 
-  return (
-    <div className="pt-24 pb-16">
-      {/* Back Link */}
-      <div className="max-w-4xl mx-auto px-6 mb-8">
-        <Link
-          href="/journal"
-          className="inline-flex items-center gap-2 text-sm text-charcoal-light hover:text-charcoal transition-colors"
-        >
-          <ArrowLeft size={16} />
-          Back to Journal
-        </Link>
-      </div>
+  const featuredProduct = PRODUCTS.find(
+    (p) => p.id === article.featuredProductId
+  );
+  const relatedArticles = article.relatedArticleIds
+    ?.map((id) => ARTICLES.find((a) => a.id === id))
+    .filter(Boolean) as Article[];
 
-      {/* Header */}
-      <header className="max-w-4xl mx-auto px-6 mb-12">
-        <span className="text-xs uppercase tracking-widest text-terracotta mb-4 block">
-          {article.category}
-        </span>
-        <h1 className="font-serif text-4xl lg:text-5xl text-charcoal mb-6">
+  return (
+    <div className="bg-cream min-h-screen pt-[72px] lg:pt-[88px]">
+      {/* 0. READING PROGRESS BAR */}
+      <div
+        className="fixed top-[72px] lg:top-[88px] left-0 h-[4px] bg-terracotta z-[60] transition-all duration-100 ease-out"
+        style={{ width: `${readingProgress}%` }}
+      />
+
+      {/* 1. ARTICLE HEADER */}
+      <header className="max-w-[1000px] mx-auto px-6 lg:px-8 pt-12 lg:pt-24 pb-12 text-center relative z-10">
+        <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-8 flex items-center justify-center gap-2">
+          <Link
+            href="/journal"
+            className="hover:text-terracotta transition-colors"
+          >
+            Journal
+          </Link>
+          <span className="text-gray-300">/</span>
+          <span className="text-charcoal">{article.category}</span>
+        </div>
+
+        <h1 className="font-serif text-3xl md:text-5xl lg:text-6xl text-charcoal mb-8 leading-[1.15] tracking-tight">
           {article.title}
         </h1>
-        <p className="text-charcoal-light text-lg">{article.excerpt}</p>
-        <div className="mt-6 text-sm text-gray-400">{article.readTime}</div>
+
+        <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-bold uppercase tracking-widest text-charcoal-light">
+          <span>{article.date || "Oct 24, 2023"}</span>
+          <span className="w-1 h-1 bg-terracotta rounded-full"></span>
+          <span>{article.readTime}</span>
+          <span className="w-1 h-1 bg-terracotta rounded-full"></span>
+          <span>By {article.author || "The Editorial Team"}</span>
+        </div>
       </header>
 
-      {/* Featured Image */}
-      <div className="max-w-5xl mx-auto px-6 mb-12">
-        <div className="relative aspect-[16/9] overflow-hidden">
+      {/* Hero Image */}
+      <div className="w-full max-w-[1200px] mx-auto px-4 lg:px-8 mb-16 lg:mb-24 relative z-0">
+        <div className="aspect-[3/2] lg:aspect-[21/9] overflow-hidden rounded-sm shadow-sm relative">
           <ImageWithFallback
             src={article.image}
             alt={article.title}
             fill
+            className="w-full h-full object-cover"
             priority
-            className="object-cover"
           />
         </div>
       </div>
 
-      {/* Content */}
-      <article className="max-w-3xl mx-auto px-6 prose prose-lg">
-        <p>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed euismod,
-          nisl vel tincidunt lacinia, nisl nisl aliquam nisl, vel aliquam nisl
-          nisl vel nisl. Sed euismod, nisl vel tincidunt lacinia, nisl nisl
-          aliquam nisl, vel aliquam nisl nisl vel nisl.
-        </p>
-        <p>
-          Praesent commodo cursus magna, vel scelerisque nisl consectetur et.
-          Nullam quis risus eget urna mollis ornare vel eu leo. Cum sociis
-          natoque penatibus et magnis dis parturient montes, nascetur ridiculus
-          mus.
-        </p>
-        <h2>Understanding Your Body</h2>
-        <p>
-          Maecenas sed diam eget risus varius blandit sit amet non magna. Nullam
-          id dolor id nibh ultricies vehicula ut id elit. Donec id elit non mi
-          porta gravida at eget metus.
-        </p>
-        <p>
-          Aenean eu leo quam. Pellentesque ornare sem lacinia quam venenatis
-          vestibulum. Sed posuere consectetur est at lobortis. Cras mattis
-          consectetur purus sit amet fermentum.
-        </p>
-        <h2>The Science Behind Pleasure</h2>
-        <p>
-          Vestibulum id ligula porta felis euismod semper. Morbi leo risus,
-          porta ac consectetur ac, vestibulum at eros. Duis mollis, est non
-          commodo luctus, nisi erat porttitor ligula, eget lacinia odio sem nec
-          elit.
-        </p>
-      </article>
+      {/* 2. MAIN CONTENT AREA */}
+      <div className="max-w-[1200px] mx-auto px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-12 mb-24 relative z-0 items-start">
+        {/* Left Column: Content */}
+        <div className="lg:col-span-9 lg:pr-12 flex flex-col min-w-0">
+          {/* Share Links */}
+          <div className="flex gap-6 mb-12 text-gray-400 border-b border-gray-100 pb-6">
+            <span className="text-xs uppercase tracking-widest font-bold text-charcoal self-center mr-auto">
+              Share Story
+            </span>
+            <Share2
+              size={18}
+              className="hover:text-terracotta cursor-pointer transition-colors"
+            />
+            <Facebook
+              size={18}
+              className="hover:text-terracotta cursor-pointer transition-colors"
+            />
+            <Twitter
+              size={18}
+              className="hover:text-terracotta cursor-pointer transition-colors"
+            />
+            <LinkIcon
+              size={18}
+              className="hover:text-terracotta cursor-pointer transition-colors"
+            />
+          </div>
 
-      {/* Share / Related */}
-      <div className="max-w-3xl mx-auto px-6 mt-16 pt-8 border-t border-gray-100">
-        <Link
-          href="/journal"
-          className="text-terracotta text-sm uppercase tracking-widest hover:underline"
-        >
-          Read More Articles →
-        </Link>
+          {/* Typography Content Wrapper */}
+          <div className="font-sans text-charcoal-light space-y-8 flex-1">
+            {article.content && article.content.length > 0 ? (
+              article.content.map((block, idx) => {
+                if (block.type === "paragraph") {
+                  const isFirst = idx === 0;
+                  return (
+                    <div
+                      key={idx}
+                      className={`text-lg md:text-xl font-light leading-[1.8] text-charcoal-light ${isFirst ? "flow-root" : ""
+                        }`}
+                    >
+                      {isFirst ? (
+                        <span className="float-left mr-3 text-6xl font-serif text-terracotta leading-[0.8] pt-2">
+                          {block.text.charAt(0)}
+                        </span>
+                      ) : null}
+                      {isFirst ? block.text.slice(1) : block.text}
+                    </div>
+                  );
+                }
+                if (block.type === "blockquote") {
+                  return (
+                    <blockquote
+                      key={idx}
+                      className="my-12 p-8 bg-[#F9F8F6] border-l-4 border-terracotta rounded-r-sm"
+                    >
+                      <p className="font-serif text-2xl md:text-3xl italic text-charcoal leading-snug">
+                        &quot;{block.text}&quot;
+                      </p>
+                    </blockquote>
+                  );
+                }
+                if (block.type === "image") {
+                  return (
+                    <figure key={idx} className="w-full my-8 block">
+                      <div className="w-full h-auto min-h-[400px] overflow-hidden rounded-sm shadow-sm relative aspect-[16/9]">
+                        <ImageWithFallback
+                          src={block.src}
+                          alt="Article visual"
+                          fill
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-[1.5s]"
+                        />
+                      </div>
+                      <figcaption className="text-center text-xs text-gray-400 mt-4 uppercase tracking-wider">
+                        {block.caption}
+                      </figcaption>
+                    </figure>
+                  );
+                }
+                if (
+                  block.type === "inline-product" &&
+                  featuredProduct &&
+                  featuredProduct.id === block.productId
+                ) {
+                  return (
+                    <InlineProductBlock key={idx} product={featuredProduct} />
+                  );
+                }
+                return null;
+              })
+            ) : (
+              <p className="text-lg text-charcoal-light">
+                {article.excerpt} (Full content coming soon)
+              </p>
+            )}
+          </div>
+
+          {/* Author Bio */}
+          <div className="mt-16 pt-8 border-t border-gray-200">
+            <h4 className="font-serif text-lg text-charcoal mb-2">
+              About The Editorial Team
+            </h4>
+            <p className="text-sm font-light text-charcoal-light leading-relaxed">
+              Our team of wellness experts, sexologists, and writers are
+              dedicated to creating a safe, inclusive space for exploration. We
+              believe that knowledge is the key to unlocking pleasure.
+            </p>
+          </div>
+        </div>
+
+        {/* Right Column: Sticky Sidebar (Desktop Only) */}
+        <div className="hidden lg:block lg:col-span-3 pl-8 border-l border-gray-100 min-h-full">
+          <StickySidebar product={featuredProduct} />
+        </div>
+      </div>
+
+      {/* 3. READ NEXT */}
+      {relatedArticles && relatedArticles.length > 0 && (
+        <section className="bg-white py-24 border-t border-gray-100 relative z-10">
+          <div className="max-w-[1000px] mx-auto px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <span className="text-xs font-bold uppercase tracking-widest text-terracotta mb-4 block">
+                Up Next
+              </span>
+              <h2 className="font-serif text-3xl md:text-4xl text-charcoal">
+                Continue Reading
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              {relatedArticles.map((relArticle) => (
+                <Link
+                  key={relArticle.id}
+                  href={`/journal/${relArticle.slug}`}
+                  className="group cursor-pointer"
+                >
+                  <div className="aspect-[16/9] bg-gray-100 mb-6 overflow-hidden rounded-sm relative">
+                    <ImageWithFallback
+                      src={relArticle.image}
+                      alt={relArticle.title}
+                      fill
+                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-gray-400 mb-2">
+                    <span>{relArticle.category}</span>
+                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>{relArticle.readTime}</span>
+                  </div>
+                  <h3 className="font-serif text-2xl text-charcoal group-hover:text-terracotta transition-colors leading-tight">
+                    {relArticle.title}
+                  </h3>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* MOBILE STICKY BOTTOM BAR */}
+      <div
+        className={`fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 z-40 lg:hidden transform transition-transform duration-300 shadow-[0_-5px_10px_rgba(0,0,0,0.02)] ${showMobileSticky ? "translate-y-0" : "translate-y-full"
+          }`}
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col">
+            <span className="font-serif text-charcoal text-sm truncate max-w-[180px]">
+              Enjoying this article?
+            </span>
+            <span className="text-[10px] text-terracotta font-bold uppercase tracking-widest">
+              Explore the collection
+            </span>
+          </div>
+          <Link
+            href="/shop"
+            className="bg-charcoal text-white px-6 py-3 text-xs uppercase font-bold tracking-widest rounded-sm shadow-lg whitespace-nowrap"
+          >
+            Shop Now
+          </Link>
+        </div>
       </div>
     </div>
   );
