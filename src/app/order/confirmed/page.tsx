@@ -132,9 +132,9 @@ export default function OrderConfirmedPage() {
             Thank you for your purchase. We've received your order and sent a confirmation email to <span className="font-medium text-charcoal">{email || "your email"}</span>.
           </p>
 
-          <div className="bg-gray-50 rounded-xl p-6 mb-8 inline-block w-full max-w-sm mx-auto">
+          <div className="bg-gray-50 rounded-xl p-6 mb-8 inline-block w-full max-w-lg mx-auto">
             <p className="text-sm text-charcoal-light uppercase tracking-wider mb-2">Order ID</p>
-            <p className="font-mono text-xl sm:text-2xl text-charcoal font-bold tracking-widest">{orderId}</p>
+            <p className="font-mono text-base sm:text-lg text-charcoal font-bold break-all tracking-normal">{orderId}</p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
