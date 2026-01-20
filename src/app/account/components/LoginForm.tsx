@@ -18,7 +18,7 @@ export function LoginForm({ justRegistered }: { justRegistered: boolean }) {
     try {
       await login(email, password);
     } catch (error: any) {
-      setLoginError(error.message || "Login failed");
+      setLoginError("Invalid email or password. Please check your credentials.");
     } finally {
       setIsLoggingIn(false);
     }

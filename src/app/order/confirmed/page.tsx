@@ -133,7 +133,7 @@ export default function OrderConfirmedPage() {
           </p>
 
           <div className="bg-gray-50 rounded-xl p-6 mb-8 inline-block w-full max-w-sm mx-auto">
-            <p className="text-sm text-charcoal-light uppercase tracking-wider mb-2">Order Number</p>
+            <p className="text-sm text-charcoal-light uppercase tracking-wider mb-2">Order ID</p>
             <p className="font-mono text-xl sm:text-2xl text-charcoal font-bold tracking-widest">{orderId}</p>
           </div>
 

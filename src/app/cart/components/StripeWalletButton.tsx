@@ -121,13 +121,13 @@ export default function StripeWalletButton({ cart, amount, currency }: { cart: a
         const orderData = completeData.order || (completeData.type === "order" ? completeData.data : null);
 
         if (orderData) {
-            // Redirect
-            const redirectUrl = `/order/confirmed?success=true&order=${orderData.display_id || orderData.id}&email=${encodeURIComponent(ev.payerEmail || "")}&first_name=${encodeURIComponent(firstName)}&last_name=${encodeURIComponent(lastName)}`;
-            router.push(redirectUrl);
-            refreshCart(); // Cleanup
+          // Redirect
+          const redirectUrl = `/order/confirmed?success=true&order=${orderData.id}&email=${encodeURIComponent(ev.payerEmail || "")}&first_name=${encodeURIComponent(firstName)}&last_name=${encodeURIComponent(lastName)}`;
+          router.push(redirectUrl);
+          refreshCart(); // Cleanup
         } else {
-            console.error("Order completion failed", completeData);
-            router.push("/account");
+          console.error("Order completion failed", completeData);
+          router.push("/account");
         }
 
       } catch (err) {

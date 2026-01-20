@@ -208,11 +208,11 @@ function CheckoutForm() {
         const namePartsRedirect = billingData.name.trim().split(" ");
         const firstNameRedirect = namePartsRedirect[0] || "";
         const lastNameRedirect = namePartsRedirect.length > 1 ? namePartsRedirect.slice(1).join(" ") : "";
-        
-        const redirectUrl = `/order/confirmed?success=true&order=${orderData.display_id || orderData.id}&email=${encodeURIComponent(billingData.email)}&first_name=${encodeURIComponent(firstNameRedirect)}&last_name=${encodeURIComponent(lastNameRedirect)}`;
+
+        const redirectUrl = `/order/confirmed?success=true&order=${orderData.id}&email=${encodeURIComponent(billingData.email)}&first_name=${encodeURIComponent(firstNameRedirect)}&last_name=${encodeURIComponent(lastNameRedirect)}`;
         console.log("[Checkout] Redirecting to:", redirectUrl);
         router.push(redirectUrl);
-        
+
         // Refresh cart afterwards (no await needed for navigation)
         refreshCart().catch(err => console.error("Background cart refresh failed:", err));
       } else if (completeData.type === "cart") {

@@ -221,39 +221,26 @@ export function Providers({ children }: ProvidersProps) {
 
   // Auth Handlers
   const handleLogin = async (email: string, pass: string) => {
+    // Don't set global auth loading to prevent unmounting the login form
+    // setAuthLoading(true);
     try {
-      setAuthLoading(true);
       const token = await login(email, pass);
       if (token && typeof token === "string") {
         localStorage.setItem(AUTH_TOKEN_KEY, token);
-        const customer = await getCustomer(); // Implicitly uses token from cookie/headers? 
-        // NOTE: Our SDK wrapper might need the token explicitly if it's not cookie-based.
-        // Assuming medusa-js handles cookie automagically or we need to look into `medusa.ts`.
-        // `medusa.ts` sdk doesn't inject token automatically if using basic instance. 
-        // We might need to reload the page or ensure requests send the header.
-        // However, based on AccountPage, it sends 'Authorization' header manually.
-        // The SDK might rely on that. Let's assume standard behavior for now.
-        // Correction: AccountPage passes headers manually. Our SDK wrapper methods behave differently?
-        // Let's rely on standard medusa-js session or improve wrapper later. 
-        // But wait, `getCustomer` in `medusa.ts` uses `sdk.store.customer.retrieve()`.
-        // This usually requires a cookie or header. 
-        // Keep it simple: We set `medusa_auth_token`. Medusa-js SDK usually manages `Set-Cookie` from backend if configured (CORS/Credentials).
-        // If not, we might need to patch the SDK to specific tokens.
-        // For now, let's update User state.
+        const customer = await getCustomer();
         if (customer) setUser(customer as unknown as User);
-        // Page reload might be safer to ensure all fetchers get the token if we rely on localStorage->Header injection in a global interceptor (not visible here).
-        // Or we just update state and hope initCart triggers.
       } else {
         throw new Error("Login failed");
       }
-    } finally {
-      setAuthLoading(false);
+    } catch (error) {
+      throw error;
     }
   };
 
   const handleRegister = async (email: string, pass: string, first: string, last: string) => {
+    // Don't set global auth loading to prevent unmounting the register form
+    // setAuthLoading(true);
     try {
-      setAuthLoading(true);
       const result = await register(email, pass, first, last);
       if (result?.token) {
         localStorage.setItem(AUTH_TOKEN_KEY, result.token);
@@ -261,8 +248,8 @@ export function Providers({ children }: ProvidersProps) {
       } else {
         throw new Error("Registration failed");
       }
-    } finally {
-      setAuthLoading(false);
+    } catch (error) {
+      throw error;
     }
   };
 
