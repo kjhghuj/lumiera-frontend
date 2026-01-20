@@ -107,6 +107,11 @@ export default function ProductActions({ product, onVariantChange }: ProductActi
     }
   }, [selectedVariant, onVariantChange]);
 
+  // Reset quantity to 1 when the selected variant changes
+  useEffect(() => {
+    setQuantity(1);
+  }, [selectedVariant?.id]);
+
   const isInStock = useMemo(() => {
     if (!selectedVariant) return false;
 
