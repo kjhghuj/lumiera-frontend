@@ -1,4 +1,4 @@
-import Image from "next/image";
+import ImageWithFallback from "@/components/ImageWithFallback";
 import Link from "next/link";
 import { ARTICLES } from "@/lib/constants";
 
@@ -30,7 +30,7 @@ export default function JournalPage() {
         <Link href={`/journal/${featured.slug}`} className="group block">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="relative aspect-[4/3] lg:aspect-auto lg:h-[500px] overflow-hidden">
-              <Image
+              <ImageWithFallback
                 src={featured.image}
                 alt={featured.title}
                 fill
@@ -63,7 +63,7 @@ export default function JournalPage() {
               className="group"
             >
               <div className="relative aspect-[4/3] overflow-hidden mb-4">
-                <Image
+                <ImageWithFallback
                   src={article.image}
                   alt={article.title}
                   fill

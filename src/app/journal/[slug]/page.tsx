@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
+import ImageWithFallback from "@/components/ImageWithFallback";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { ARTICLES } from "@/lib/constants";
@@ -50,7 +50,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       {/* Featured Image */}
       <div className="max-w-5xl mx-auto px-6 mb-12">
         <div className="relative aspect-[16/9] overflow-hidden">
-          <Image
+          <ImageWithFallback
             src={article.image}
             alt={article.title}
             fill
