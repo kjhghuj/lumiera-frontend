@@ -34,6 +34,7 @@ export default function OrderConfirmedPage() {
   const [registering, setRegistering] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [registerSuccess, setRegisterSuccess] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -43,9 +44,34 @@ export default function OrderConfirmedPage() {
     const userFirstName = urlParams.get("first_name");
     const userLastName = urlParams.get("last_name");
 
+    const checkRegistration = async (emailToCheck: string) => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/check-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-publishable-api-key': process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || '',
+          },
+          body: JSON.stringify({ email: emailToCheck })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.is_registered) {
+            setIsRegistered(true);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check registration status", err);
+      }
+    };
+
     if (success && orderNum) {
       setOrderId(orderNum);
-      if (userEmail) setEmail(userEmail);
+      if (userEmail) {
+        setEmail(userEmail);
+        checkRegistration(userEmail);
+      }
       if (userFirstName) setFirstName(userFirstName);
       if (userLastName) setLastName(userLastName);
     }
@@ -121,18 +147,18 @@ export default function OrderConfirmedPage() {
   }
 
   return (
-    <div className="min-h-screen bg-cream pt-24 pb-20 px-4 sm:px-6">
-      <div className="max-w-2xl mx-auto space-y-8">
+    <div className="bg-cream flex flex-col items-center pt-32 pb-4 px-4 sm:px-6">
+      <div className="w-full max-w-2xl space-y-6">
 
         {/* Success Card */}
-        <div className="bg-white rounded-2xl p-8 sm:p-12 text-center shadow-sm border border-gray-100">
+        <div className="bg-white rounded-2xl p-6 sm:p-10 text-center shadow-sm border border-gray-100">
           <CheckIcon />
-          <h1 className="font-serif text-3xl sm:text-4xl text-charcoal mb-4">Order Confirmed!</h1>
-          <p className="text-charcoal-light text-lg mb-8">
+          <h1 className="font-serif text-3xl sm:text-4xl text-charcoal mb-3">Order Confirmed!</h1>
+          <p className="text-charcoal-light text-lg mb-6">
             Thank you for your purchase. We've received your order and sent a confirmation email to <span className="font-medium text-charcoal">{email || "your email"}</span>.
           </p>
 
-          <div className="bg-gray-50 rounded-xl p-6 mb-8 inline-block w-full max-w-lg mx-auto">
+          <div className="bg-gray-50 rounded-xl p-6 mb-6 inline-block w-full max-w-lg mx-auto">
             <p className="text-sm text-charcoal-light uppercase tracking-wider mb-2">Order ID</p>
             <p className="font-mono text-base sm:text-lg text-charcoal font-bold break-all tracking-normal">{orderId}</p>
           </div>
@@ -148,7 +174,7 @@ export default function OrderConfirmedPage() {
         </div>
 
         {/* Quick Account Creation - Only if we have email and not successful yet */}
-        {email && !registerSuccess && (
+        {email && !registerSuccess && !isRegistered && (
           <div className="bg-terracotta/5 rounded-2xl p-8 sm:p-10 border border-terracotta/20">
             <div className="flex flex-col md:flex-row gap-8 items-start">
               <div className="md:flex-1">
