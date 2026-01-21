@@ -85,33 +85,64 @@ export default function OrderConfirmedPage() {
 
     setRegistering(true);
     setRegisterError(null);
+    const BACKEND_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL;
+    const API_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || '';
 
     try {
-      // Direct call to Medusa backend register
-      const response = await fetch(`${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/customers`, {
+      // Step 1: Register with Auth Service (Email/Password)
+      const authResponse = await fetch(`${BACKEND_URL}/auth/customer/emailpass/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-publishable-api-key': process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || '',
+          'x-publishable-api-key': API_KEY,
         },
         body: JSON.stringify({
           email: email,
           password: password,
+        }),
+      });
+
+      if (!authResponse.ok) {
+        const errorData = await authResponse.json();
+        throw new Error(errorData.message || "Registration failed during authentication.");
+      }
+
+      const authData = await authResponse.json();
+      const token = authData.token;
+
+      // Step 2: Create Customer Profile (using the new token)
+      const customerResponse = await fetch(`${BACKEND_URL}/store/customers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-publishable-api-key': API_KEY,
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          email: email,
           first_name: firstName,
           last_name: lastName,
         })
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Failed to create account");
+      if (!customerResponse.ok) {
+        const errorData = await customerResponse.json();
+        throw new Error(errorData.message || "Failed to create customer profile.");
+      }
+
+      // Store token for auto-login
+      if (typeof window !== 'undefined') {
+        localStorage.setItem("medusa_auth_token", token);
       }
 
       setRegisterSuccess(true);
-      // Optional: Auto login? For now just show success.
     } catch (err: any) {
       console.error(err);
-      setRegisterError(err.message || "Registration failed. You might already have an account.");
+      if (err.message && (err.message.includes("exists") || err.message.includes("duplicate"))) {
+        setRegisterError("An account with this email already exists.");
+      } else {
+        setRegisterError(err.message || "Registration failed. Please try again.");
+      }
     } finally {
       setRegistering(false);
     }

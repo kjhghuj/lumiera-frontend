@@ -80,7 +80,7 @@ export default function OrderSummary({
           </div>
         )}
 
-        <div className="border-t border-gray-200 pt-4 mt-4">
+        <div className="border-t border-gray-200 pt-4 mt-4 mb-4">
           <div className="flex justify-between">
             <span className="font-serif text-lg text-charcoal">Total</span>
             <span className="font-serif text-lg text-charcoal">
