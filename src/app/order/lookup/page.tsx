@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 // Icons
 function SearchIcon() {
@@ -21,16 +22,15 @@ function ArrowRightIcon() {
 }
 
 export default function OrderLookupPage() {
+    const searchParams = useSearchParams();
     const [orderId, setOrderId] = useState("");
     const [email, setEmail] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [orderData, setOrderData] = useState<any | null>(null);
 
-    const handleLookup = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!orderId || !email) {
+    const lookupOrder = async (id: string, mail: string) => {
+        if (!id || !mail) {
             setError("Please fill in all fields.");
             return;
         }
@@ -40,16 +40,8 @@ export default function OrderLookupPage() {
         setOrderData(null);
 
         try {
-            // Using Medusa Store API via our existing Next.js proxy rewrite logic 
-            // or directly if client-side safe. 
-            // Better to use proxy: /api/medusa/store/orders/{id}
-
-            // NOTE: Store API orders/{id} often requires authentication or specific headers in v2 (?)
-            // Actually, usually public ID access depends on store config. 
-            // Let's try standard fetch. If 404 or 401, we know.
-
             // Prepend order_ prefix if not already present
-            const fullOrderId = orderId.startsWith('order_') ? orderId : `order_${orderId}`;
+            const fullOrderId = id.startsWith('order_') ? id : `order_${id}`;
 
             const response = await fetch(`/api/medusa/store/orders/${fullOrderId}`, {
                 headers: {
@@ -68,8 +60,7 @@ export default function OrderLookupPage() {
             const order = data.order;
 
             // Security Check: Client-side email validation
-            // Ideally backend would do this, but for "Track My Order" simple implementation:
-            if (!order || !order.email || order.email.toLowerCase() !== email.toLowerCase()) {
+            if (!order || !order.email || order.email.toLowerCase() !== mail.toLowerCase()) {
                 // Fake 404 security practice: Don't reveal order exists if email mismatch
                 throw new Error("Order not found with provided details.");
             }
@@ -83,6 +74,23 @@ export default function OrderLookupPage() {
             setLoading(false);
         }
     };
+
+    const handleLookup = async (e: React.FormEvent) => {
+        e.preventDefault();
+        await lookupOrder(orderId, email);
+    };
+
+    useEffect(() => {
+        const urlOrder = searchParams.get("order");
+        const urlEmail = searchParams.get("email");
+
+        if (urlOrder && urlEmail) {
+            setOrderId(urlOrder);
+            setEmail(urlEmail);
+            // Small delay to ensure state updates or UI readiness if needed, but direct call is fine
+            lookupOrder(urlOrder, urlEmail);
+        }
+    }, [searchParams]);
 
     return (
         <div className="pt-24 pb-20 bg-cream">
