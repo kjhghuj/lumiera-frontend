@@ -48,7 +48,10 @@ export default function OrderLookupPage() {
             // Actually, usually public ID access depends on store config. 
             // Let's try standard fetch. If 404 or 401, we know.
 
-            const response = await fetch(`/api/medusa/store/orders/${orderId}`, {
+            // Prepend order_ prefix if not already present
+            const fullOrderId = orderId.startsWith('order_') ? orderId : `order_${orderId}`;
+
+            const response = await fetch(`/api/medusa/store/orders/${fullOrderId}`, {
                 headers: {
                     'x-publishable-api-key': process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || '',
                 }
@@ -82,7 +85,7 @@ export default function OrderLookupPage() {
     };
 
     return (
-        <div className="pt-24 pb-20 min-h-screen bg-cream">
+        <div className="pt-24 pb-20 bg-cream">
             <div className="max-w-xl mx-auto px-6">
 
                 <h1 className="font-serif text-3xl text-charcoal mb-4 text-center">Track Your Order</h1>
@@ -100,7 +103,7 @@ export default function OrderLookupPage() {
                                     type="text"
                                     value={orderId}
                                     onChange={(e) => setOrderId(e.target.value.trim())}
-                                    placeholder="e.g. order_01..."
+                                    placeholder="e.g. 01JMHK7X8Y..."
                                     className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-terracotta rounded-lg"
                                     required
                                 />

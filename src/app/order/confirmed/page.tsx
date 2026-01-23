@@ -23,6 +23,12 @@ function LockIcon() {
   );
 }
 
+// Helper function to extract ULID from order ID
+function extractUlid(orderId: string | null): string {
+  if (!orderId) return '';
+  return orderId.startsWith('order_') ? orderId.substring(6) : orderId;
+}
+
 export default function OrderConfirmedPage() {
   const router = useRouter();
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -191,14 +197,14 @@ export default function OrderConfirmedPage() {
 
           <div className="bg-gray-50 rounded-xl p-6 mb-6 inline-block w-full max-w-lg mx-auto">
             <p className="text-sm text-charcoal-light uppercase tracking-wider mb-2">Order ID</p>
-            <p className="font-mono text-base sm:text-lg text-charcoal font-bold break-all tracking-normal">{orderId}</p>
+            <p className="font-mono text-base sm:text-lg text-charcoal font-bold break-all tracking-normal">{extractUlid(orderId)}</p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/shop" className="bg-charcoal text-white px-8 py-4 rounded-full hover:bg-charcoal-light transition-colors font-medium min-w-[200px]">
               Continue Shopping
             </Link>
-            <Link href={`/order/lookup?order=${orderId}&email=${encodeURIComponent(email || "")}`} className="bg-white border border-gray-200 text-charcoal px-8 py-4 rounded-full hover:border-charcoal transition-colors font-medium min-w-[200px]">
+            <Link href={`/order/lookup?order=${extractUlid(orderId)}&email=${encodeURIComponent(email || "")}`} className="bg-white border border-gray-200 text-charcoal px-8 py-4 rounded-full hover:border-charcoal transition-colors font-medium min-w-[200px]">
               View Order Details
             </Link>
           </div>
