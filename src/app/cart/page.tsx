@@ -39,9 +39,9 @@ function CartContent() {
         const hasCache = item.product_id && productImageCache[item.product_id];
 
         if (!hasItemThumbnail && !hasVariantImage && !hasProductThumbnail && !hasProductImage && !hasCache && item.product_id) {
-            if (!idsToFetch.includes(item.product_id)) {
-                idsToFetch.push(item.product_id);
-            }
+          if (!idsToFetch.includes(item.product_id)) {
+            idsToFetch.push(item.product_id);
+          }
         }
       });
 
@@ -66,15 +66,15 @@ function CartContent() {
         }
       } else {
         // Just sync cache to state for any items that might have been cached previously but not in state
-         const newResolved: Record<string, string> = {};
-         cart.items.forEach(item => {
-             if (item.product_id && productImageCache[item.product_id] && !resolvedImages[item.product_id]) {
-                 newResolved[item.product_id] = productImageCache[item.product_id];
-             }
-         });
-         if (Object.keys(newResolved).length > 0) {
-             setResolvedImages(prev => ({ ...prev, ...newResolved }));
-         }
+        const newResolved: Record<string, string> = {};
+        cart.items.forEach(item => {
+          if (item.product_id && productImageCache[item.product_id] && !resolvedImages[item.product_id]) {
+            newResolved[item.product_id] = productImageCache[item.product_id];
+          }
+        });
+        if (Object.keys(newResolved).length > 0) {
+          setResolvedImages(prev => ({ ...prev, ...newResolved }));
+        }
       }
     }
 
@@ -145,7 +145,7 @@ function CartContent() {
 
   // Calculate totals
   const subtotal = cart?.item_subtotal || 0;
-  const shipping = cart?.shipping_total || null;
+  const shipping = typeof cart?.shipping_total === 'number' ? cart.shipping_total : null;
   const tax = cart?.tax_total || 0;
   const discount = cart?.discount_total || 0;
   const total = cart?.total || subtotal;

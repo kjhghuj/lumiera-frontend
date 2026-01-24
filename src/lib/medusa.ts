@@ -165,18 +165,10 @@ export async function createCart(regionId: string) {
 export async function getCart(cartId: string) {
   try {
     // Retrieve cart with all necessary fields
-    // CRITICAL: In Medusa v2, cart totals (total, subtotal, tax_total, discount_total, etc.) 
-    // are CALCULATED FIELDS and must be explicitly requested in the fields parameter.
-    // Using "*" alone will NOT return these calculated fields!
-    // 
-    // Syntax:
-    // - "*relation" = get all fields of a relation
-    // - "+field" = add field to default set
-    // - "field" = explicitly request field
+    // Try requesting everything to debug
     const { cart } = await sdk.store.cart.retrieve(cartId, {
-      fields: "+items,+items.variant,+items.variant.product,+items.adjustments,+promotions,+region,+total,+subtotal,+item_subtotal,+discount_total,+tax_total,+shipping_total,+item_tax_total",
+      fields: "+items,+items.variant,+items.variant.product,+items.adjustments,+promotions,+region,+total,+subtotal,+item_subtotal,+discount_total,+tax_total,+shipping_total,+item_tax_total,+shipping_methods",
     });
-    console.log("[getCart] Retrieved cart:", cartId, "items:", cart?.items?.length || 0, "promotions:", cart?.promotions?.length || 0, "total:", cart?.total || 0);
     return cart;
   } catch (error: any) {
     // If cart doesn't exist (404) or is invalid (400), return null instead of throwing
@@ -593,6 +585,32 @@ export async function selectStripePaymentSession(cartId: string) {
     return data.cart;
   } catch (error) {
     console.error("[selectStripePaymentSession] Error:", error);
+    throw error;
+  }
+}
+
+
+// Shipping Operations
+export async function getShippingOptions(cartId: string) {
+  try {
+    const { shipping_options } = await sdk.store.fulfillment.listCartOptions({
+      cart_id: cartId,
+    });
+    return shipping_options || [];
+  } catch (error) {
+    console.error("Error fetching shipping options:", error);
+    return [];
+  }
+}
+
+export async function addShippingMethod(cartId: string, optionId: string) {
+  try {
+    const { cart } = await sdk.store.cart.addShippingMethod(cartId, {
+      option_id: optionId,
+    });
+    return cart;
+  } catch (error) {
+    console.error("Error adding shipping method:", error);
     throw error;
   }
 }
