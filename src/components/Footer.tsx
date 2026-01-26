@@ -122,7 +122,7 @@ export default function Footer() {
           </MobileAccordionItem>
 
           {/* Newsletter Col */}
-          <div className="col-span-1 lg:col-span-2">
+          <div className="col-span-1 lg:col-span-1">
             <Newsletter />
           </div>
         </div>

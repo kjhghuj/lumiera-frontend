@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
 import LayoutWrapper from "@/components/LayoutWrapper";
+import ExitIntentPopup from "@/components/ExitIntentPopup";
 
 export const metadata: Metadata = {
   title: "LUMIERA | Premium Intimate Wellness",
@@ -27,6 +28,7 @@ export default function RootLayout({
         <Providers>
           <div className="flex flex-col min-h-screen font-sans text-charcoal bg-cream">
             <LayoutWrapper>{children}</LayoutWrapper>
+            <ExitIntentPopup />
           </div>
         </Providers>
       </body>

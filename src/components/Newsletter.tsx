@@ -67,10 +67,10 @@ export default function Newsletter() {
     return (
         <div className="w-full">
             <h5 className="uppercase tracking-widest text-xs font-bold text-terracotta mb-6">
-                Newsletter
+                Unlock 15% Off Your First Ritual
             </h5>
             <p className="text-sm text-charcoal-light mb-4">
-                Subscribe for updates, exclusive offers, and wellness tips.
+                Join the Lumiera community for intimate wellness tips and exclusive offers. Unsubscribe anytime.
             </p>
 
             {status === "success" ? (
@@ -85,27 +85,28 @@ export default function Newsletter() {
                             placeholder="Enter your email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-transparent border-b border-gray-300 py-2 pr-8 text-sm placeholder-gray-400 focus:outline-none focus:border-terracotta transition-colors"
+                            className="w-full bg-transparent border-b border-gray-300 py-3 text-sm placeholder-gray-400 focus:outline-none focus:border-terracotta transition-colors"
                             required
                         />
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="absolute right-0 top-1/2 -translate-y-1/2 text-charcoal hover:text-terracotta transition-colors disabled:opacity-50"
-                        >
-                            {isLoading ? (
-                                <Loader2 size={16} className="animate-spin" />
-                            ) : (
-                                <MoveRight size={16} />
-                            )}
-                        </button>
                     </div>
+
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full bg-charcoal text-white py-2 text-xs uppercase tracking-widest hover:bg-terracotta transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
+                    >
+                        {isLoading ? (
+                            <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                            "Get My Code"
+                        )}
+                    </button>
 
                     {status === "error" && (
                         <p className="text-xs text-red-500">{errorMessage}</p>
                     )}
 
-                    <div className="mt-2" style={{ minHeight: "65px" }}> {/* Prevent layout shift */}
+                    <div className="mt-2 origin-top-left scale-85" style={{ height: "55px" }}> {/* Scale down to compress height */}
                         <Turnstile
                             ref={turnstileRef}
                             siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
@@ -114,10 +115,14 @@ export default function Newsletter() {
                             onExpire={() => setTurnstileToken(null)}
                             options={{
                                 theme: "light",
-                                size: "normal" // or "compact" for footer
+                                size: "normal" // Switch to normal (horizontal) which is shorter (65px) than compact (120px)
                             }}
                         />
                     </div>
+
+                    <p className="text-[10px] text-gray-400 mt-1">
+                        100% Discreet & Spam-free.
+                    </p>
                 </form>
             )}
         </div>
