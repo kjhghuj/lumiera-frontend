@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, CreditCard } from "lucide-react";
 import { COMPANY_INFO, FOOTER_LINKS } from "@/lib/constants";
+import Newsletter from "./Newsletter";
 
 interface MobileAccordionItemProps {
   title: string;
@@ -29,15 +30,13 @@ function MobileAccordionItem({
         </h5>
         <ChevronDown
           size={16}
-          className={`text-charcoal-light transition-transform lg:hidden ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={`text-charcoal-light transition-transform lg:hidden ${isOpen ? "rotate-180" : ""
+            }`}
         />
       </button>
       <div
-        className={`overflow-hidden transition-all duration-300 lg:h-auto lg:block ${
-          isOpen ? "max-h-48 mb-4" : "max-h-0 lg:max-h-none"
-        }`}
+        className={`overflow-hidden transition-all duration-300 lg:h-auto lg:block ${isOpen ? "max-h-48 mb-4" : "max-h-0 lg:max-h-none"
+          }`}
       >
         <ul className="space-y-3 text-sm text-charcoal-light">{children}</ul>
       </div>
@@ -56,7 +55,7 @@ export default function Footer() {
     <footer className="bg-white border-t border-gray-200 pt-16 pb-8">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-8">
         {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12 mb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 mb-16">
           {/* Brand Col */}
           <div className="col-span-1 lg:col-span-1 mb-8 lg:mb-0">
             <span className="font-serif text-2xl tracking-[0.2em] text-charcoal font-bold block mb-6">
@@ -121,6 +120,11 @@ export default function Footer() {
               </li>
             ))}
           </MobileAccordionItem>
+
+          {/* Newsletter Col */}
+          <div className="col-span-1 lg:col-span-2">
+            <Newsletter />
+          </div>
         </div>
 
         {/* Bottom Bar */}
