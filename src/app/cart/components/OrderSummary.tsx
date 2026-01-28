@@ -245,12 +245,12 @@ export default function OrderSummary({
           </button>
         </Link>
 
-        {/* Wallet Buttons */}
-        {!isLoading && itemCount > 0 && (
+        {/* Wallet Buttons - HIDDEN per request */}
+        {/* {!isLoading && itemCount > 0 && (
           <div className="pt-2">
             <StripeWalletButton cart={cart} amount={total} currency={currencyCode} />
           </div>
-        )}
+        )} */}
 
         {/* Continue Shopping */}
         <Link
