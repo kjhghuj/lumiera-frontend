@@ -105,6 +105,7 @@ export function ContactForm({ billingData, setBillingData, cardData, setCardData
             <div className="w-full border border-gray-200 px-4 py-3 focus-within:border-terracotta rounded-lg bg-white">
               <CardElement
                 options={{
+                  hidePostalCode: true,
                   style: {
                     base: {
                       fontSize: '16px',
