@@ -1,4 +1,5 @@
 import { CardElement } from "@stripe/react-stripe-js";
+import { CountrySelect } from "./CountrySelect";
 
 interface ContactFormProps {
   billingData: any;
@@ -88,18 +89,11 @@ export function ContactForm({ billingData, setBillingData, cardData, setCardData
 
           <div>
             <label className="block text-xs uppercase tracking-widest text-charcoal mb-2">Country</label>
-            <select
+            <CountrySelect
               value={billingData.country}
-              onChange={(e) => setBillingData({ ...billingData, country: e.target.value })}
-              className="w-full border border-gray-200 px-4 py-3 focus:outline-none focus:border-terracotta rounded-lg"
+              onChange={(val) => setBillingData({ ...billingData, country: val })}
               required
-            >
-              <option value="">Select Country</option>
-              <option value="gb">United Kingdom</option>
-              <option value="us">United States</option>
-              <option value="de">Germany</option>
-              <option value="fr">France</option>
-            </select>
+            />
           </div>
         </div>
 
