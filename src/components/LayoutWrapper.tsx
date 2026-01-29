@@ -10,20 +10,27 @@ interface LayoutWrapperProps {
 
 export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [navOffset, setNavOffset] = useState(0);
   const { cartCount } = useCart();
   const { region } = useRegion();
 
   return (
     <>
       <AgeVerificationModal />
-      <AnnouncementBar />
-      <Navbar cartCount={cartCount} onSearchClick={() => setIsSearchOpen(true)} />
+      <AnnouncementBar onHeightChange={setNavOffset} />
+      <Navbar
+        cartCount={cartCount}
+        onSearchClick={() => setIsSearchOpen(true)}
+        topOffset={navOffset}
+      />
       <SearchOverlay
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
         regionId={region?.id}
       />
-      <main className="flex-grow">{children}</main>
+      <main className="flex-grow transition-[padding]" style={{ paddingTop: `${navOffset}px` }}>
+        {children}
+      </main>
       <ChatWidget />
       <Footer />
     </>

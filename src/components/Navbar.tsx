@@ -9,9 +9,10 @@ import { NAV_LINKS } from "@/lib/constants";
 interface NavbarProps {
   cartCount: number;
   onSearchClick: () => void;
+  topOffset?: number;
 }
 
-export default function Navbar({ cartCount, onSearchClick }: NavbarProps) {
+export default function Navbar({ cartCount, onSearchClick, topOffset = 0 }: NavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
@@ -30,11 +31,11 @@ export default function Navbar({ cartCount, onSearchClick }: NavbarProps) {
   return (
     <>
       <nav
-        className={`fixed top-0 w-full z-40 transition-all duration-300 ${
-          scrolled || isOpen
+        style={{ top: `${topOffset}px` }}
+        className={`fixed w-full z-40 transition-all duration-300 ${scrolled || isOpen
             ? "bg-cream/95 backdrop-blur-md shadow-sm py-2"
             : "bg-transparent py-4"
-        }`}
+          }`}
       >
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -87,9 +88,8 @@ export default function Navbar({ cartCount, onSearchClick }: NavbarProps) {
                   >
                     {link.name}
                     <span
-                      className={`absolute left-0 bottom-0 h-[1px] bg-terracotta transition-all duration-300 ${
-                        isActive(link.path) ? "w-full" : "w-0 group-hover:w-full"
-                      }`}
+                      className={`absolute left-0 bottom-0 h-[1px] bg-terracotta transition-all duration-300 ${isActive(link.path) ? "w-full" : "w-0 group-hover:w-full"
+                        }`}
                     ></span>
                   </Link>
                 ))}
@@ -128,9 +128,8 @@ export default function Navbar({ cartCount, onSearchClick }: NavbarProps) {
 
       {/* Mobile Menu Overlay */}
       <div
-        className={`fixed inset-0 z-30 bg-cream pt-24 px-6 transform transition-transform duration-300 ease-in-out lg:hidden ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed inset-0 z-30 bg-cream pt-24 px-6 transform transition-transform duration-300 ease-in-out lg:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="flex flex-col space-y-6">
           {NAV_LINKS.map((link) => (
