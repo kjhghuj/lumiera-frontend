@@ -45,7 +45,29 @@ export default function OrderSummary({
 
         // Restore local selection if exists
         const savedInfo = localStorage.getItem(`lumiera_shipping_${cart.id}`);
-        if (savedInfo) setLocalSelectedId(savedInfo);
+        if (savedInfo) {
+          setLocalSelectedId(savedInfo);
+        }
+
+        // Auto-select cheapest shipping if no method is currently selected
+        const hasExistingMethod = cart?.shipping_methods?.[0]?.shipping_option_id || savedInfo;
+        if (!hasExistingMethod && options.length > 0) {
+          // Sort by price (ascending) and select cheapest
+          const sortedOptions = [...options].sort((a, b) => (a.amount || 0) - (b.amount || 0));
+          const cheapestOption = sortedOptions[0];
+          if (cheapestOption) {
+            console.log("[Shipping] Auto-selecting cheapest option:", cheapestOption.name, cheapestOption.amount);
+            // Auto-apply the cheapest shipping method
+            try {
+              await addShippingMethod(cart.id, cheapestOption.id);
+              setLocalSelectedId(cheapestOption.id);
+              localStorage.setItem(`lumiera_shipping_${cart.id}`, cheapestOption.id);
+              await refreshCart();
+            } catch (error) {
+              console.error("[Shipping] Failed to auto-select shipping:", error);
+            }
+          }
+        }
       }
     }
     fetchOptions();
@@ -229,16 +251,26 @@ export default function OrderSummary({
 
       {/* Checkout Button */}
       <div className="mt-8 space-y-4">
+        {/* Warning if no shipping selected */}
+        {!selectedOption && shippingOptions.length > 0 && !loadingMethods && (
+          <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            Please select a shipping method to proceed
+          </div>
+        )}
+
         <Link href="/checkout">
           <button
-            disabled={isLoading || itemCount === 0}
+            disabled={isLoading || itemCount === 0 || !selectedOption || loadingMethods}
             className="w-full bg-charcoal text-white py-4 rounded-xl hover:bg-black transition-all duration-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-charcoal/10 hover:shadow-xl hover:shadow-charcoal/20 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md"
           >
-            {isLoading ? (
+            {isLoading || loadingMethods ? (
               <>
                 <LoadingSpinner />
                 <span>Processing...</span>
               </>
+            ) : !selectedOption ? (
+              <span>Select Shipping to Checkout</span>
             ) : (
               <span>Proceed to Checkout</span>
             )}

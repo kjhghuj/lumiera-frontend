@@ -136,6 +136,43 @@ export default function OrderConfirmedPage() {
         throw new Error(errorData.message || "Failed to create customer profile.");
       }
 
+      const customerData = await customerResponse.json();
+      const customerId = customerData.customer?.id;
+
+      console.log("[Registration] Customer created:", { customerId, orderId, email });
+
+      // Step 3: Transfer the guest order to the new customer
+      if (orderId && customerId) {
+        console.log("[Transfer] Attempting to transfer order...", { orderId, customerId });
+        try {
+          const transferResponse = await fetch(`${BACKEND_URL}/store/orders/transfer`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-publishable-api-key': API_KEY,
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              order_id: orderId,
+              customer_id: customerId,
+              customer_email: email,
+            })
+          });
+
+          if (transferResponse.ok) {
+            console.log("[Transfer] Order transferred successfully to customer account");
+          } else {
+            const errorData = await transferResponse.json();
+            console.warn("[Transfer] Failed to transfer order:", errorData);
+          }
+        } catch (transferErr) {
+          console.error("[Transfer] Error transferring order:", transferErr);
+          // Don't fail the whole registration if transfer fails
+        }
+      } else {
+        console.warn("[Transfer] Skipped - missing orderId or customerId:", { orderId, customerId });
+      }
+
       // Store token for auto-login
       if (typeof window !== 'undefined') {
         localStorage.setItem("medusa_auth_token", token);
