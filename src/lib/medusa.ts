@@ -11,6 +11,33 @@ export const sdk = new Medusa({
   publishableKey: PUBLISHABLE_API_KEY,
 });
 
+// Store helper - get store info including metadata
+export async function getStore() {
+  try {
+    // Use custom endpoint for store info
+    const response = await fetch(`${MEDUSA_BACKEND_URL}/store/store-info`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "x-publishable-api-key": PUBLISHABLE_API_KEY,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.error("[getStore] Response not OK:", response.status, response.statusText);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log("[getStore] Success, store data:", data);
+    return data.store || null;
+  } catch (error) {
+    console.error("[getStore] Error fetching store:", error);
+    return null;
+  }
+}
+
 // Region helper - get default region
 export async function getRegion(countryCode: string = "gb") {
   try {

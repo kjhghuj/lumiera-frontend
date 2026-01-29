@@ -4,3 +4,4 @@ export { default as ProductCard } from "./ProductCard";
 export { default as SearchOverlay } from "./SearchOverlay";
 export { default as AgeVerificationModal } from "./AgeVerificationModal";
 export { default as ChatWidget } from "./ChatWidget";
+export { default as AnnouncementBar } from "./AnnouncementBar";

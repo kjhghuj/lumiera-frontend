@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Navbar, Footer, SearchOverlay, AgeVerificationModal, ChatWidget } from "@/components";
+import { Navbar, Footer, SearchOverlay, AgeVerificationModal, ChatWidget, AnnouncementBar } from "@/components";
 import { useCart, useRegion } from "@/lib/providers";
 
 interface LayoutWrapperProps {
@@ -16,6 +16,7 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
   return (
     <>
       <AgeVerificationModal />
+      <AnnouncementBar />
       <Navbar cartCount={cartCount} onSearchClick={() => setIsSearchOpen(true)} />
       <SearchOverlay
         isOpen={isSearchOpen}
