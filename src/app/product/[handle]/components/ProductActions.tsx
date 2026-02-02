@@ -74,22 +74,16 @@ export default function ProductActions({ product, onVariantChange }: ProductActi
   const variants = product.variants || [];
   const options = product.options || [];
 
-  // Initialize selected options with first value of each option
-  useMemo(() => {
-    if (options.length > 0 && Object.keys(selectedOptions).length === 0) {
-      const initialOptions: Record<string, string> = {};
-      options.forEach(option => {
-        if (option.values && option.values.length > 0) {
-          initialOptions[option.id] = option.values[0].value;
-        }
-      });
-      setSelectedOptions(initialOptions);
-    }
+  // Check if all available options have been selected
+  const isAllOptionsSelected = useMemo(() => {
+    return options.every(option => !!selectedOptions[option.id]);
   }, [options, selectedOptions]);
 
   // Find matching variant based on selected options
+  // Only search if all options are selected, or if there's only one variant
   const selectedVariant = useMemo(() => {
     if (variants.length === 1) return variants[0];
+    if (!isAllOptionsSelected) return null;
 
     return variants.find(variant => {
       if (!variant.options) return false;
@@ -98,7 +92,7 @@ export default function ProductActions({ product, onVariantChange }: ProductActi
         return selectedValue === variantOption.value;
       });
     });
-  }, [variants, selectedOptions]);
+  }, [variants, selectedOptions, isAllOptionsSelected]);
 
   // Notify parent component when selected variant changes
   useEffect(() => {
@@ -270,9 +264,11 @@ export default function ProductActions({ product, onVariantChange }: ProductActi
           disabled={isProcessing || !selectedVariant?.id || !isInStock}
           className={`w-full py-4 rounded-full uppercase tracking-widest text-sm font-bold transition-all flex items-center justify-center gap-2 ${justAdded
             ? "bg-sage text-white"
-            : isInStock
-              ? "bg-terracotta text-white hover:bg-terracotta-dark disabled:opacity-50 disabled:cursor-not-allowed"
-              : "bg-gray-200 text-gray-500 cursor-not-allowed"
+            : !isAllOptionsSelected
+              ? "bg-gray-100 text-charcoal-light border border-gray-200 cursor-default"
+              : isInStock
+                ? "bg-terracotta text-white hover:bg-terracotta-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                : "bg-gray-200 text-gray-500 cursor-not-allowed"
             }`}
         >
           {justAdded ? (
@@ -285,6 +281,8 @@ export default function ProductActions({ product, onVariantChange }: ProductActi
               <LoadingSpinner />
               Adding...
             </>
+          ) : !isAllOptionsSelected ? (
+            "Select Options"
           ) : !isInStock ? (
             "Out of Stock"
           ) : (
@@ -299,9 +297,11 @@ export default function ProductActions({ product, onVariantChange }: ProductActi
         <button
           onClick={handleBuyNow}
           disabled={isProcessing || !selectedVariant?.id || !isInStock}
-          className={`w-full py-4 rounded-full uppercase tracking-widest text-sm font-bold transition-all flex items-center justify-center gap-2 ${isInStock
-            ? "bg-charcoal text-white hover:bg-charcoal-light disabled:opacity-50 disabled:cursor-not-allowed"
-            : "bg-gray-200 text-gray-500 cursor-not-allowed"
+          className={`w-full py-4 rounded-full uppercase tracking-widest text-sm font-bold transition-all flex items-center justify-center gap-2 ${!isAllOptionsSelected
+            ? "bg-gray-50 text-charcoal-light border border-gray-100 cursor-default opacity-50"
+            : isInStock
+              ? "bg-charcoal text-white hover:bg-charcoal-light disabled:opacity-50 disabled:cursor-not-allowed"
+              : "bg-gray-200 text-gray-500 cursor-not-allowed"
             }`}
         >
           {isBuyingNow ? (
@@ -309,6 +309,8 @@ export default function ProductActions({ product, onVariantChange }: ProductActi
               <LoadingSpinner />
               Processing...
             </>
+          ) : !isAllOptionsSelected ? (
+            "Complete Selection"
           ) : !isInStock ? (
             "Out of Stock"
           ) : (

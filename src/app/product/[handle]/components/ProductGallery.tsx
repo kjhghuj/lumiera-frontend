@@ -55,42 +55,46 @@ export default function ProductGallery({
    * 4. 最后：占位图
    */
   const displayImages = useMemo(() => {
-    // 优先级0: 变体缩略图 (variant.thumbnail) - 能够确保在Admin中选定的缩略图优先展示
+    const result: ProductImage[] = [];
+    const seenUrls = new Set<string>();
+
+    const addImage = (url?: string, id?: string) => {
+      if (url && !seenUrls.has(url)) {
+        result.push({ url, id });
+        seenUrls.add(url);
+      }
+    };
+
+    // 1. Priority: Variant Media (Locked to current SKU)
     const variantThumbnail = (selectedVariant as any)?.thumbnail;
     const variantImages = (selectedVariant as any)?.images;
 
+    // Add variant thumbnail first
     if (variantThumbnail) {
-      // 如果有缩略图，将其放在第一位
-      const images = [{ url: variantThumbnail }];
-
-      // 如果还有其他变体图片，添加进去（去重）
-      if (variantImages && Array.isArray(variantImages)) {
-        variantImages.forEach((img: any) => {
-          if (img.url !== variantThumbnail) {
-            images.push(img);
-          }
-        });
-      }
-      return images;
+      addImage(variantThumbnail);
     }
 
-    // 优先级1：变体专属图片 (variant.images)
-    if (variantImages && Array.isArray(variantImages) && variantImages.length > 0) {
-      return variantImages;
+    // Add other variant-specific images
+    if (variantImages && Array.isArray(variantImages)) {
+      variantImages.forEach((img: any) => addImage(img.url, img.id));
     }
 
-    // 优先级2：商品图片数组 (product.images)
-    if (images && images.length > 0) {
-      return images;
+    // 2. Secondary: Product Gallery (All other angles/details)
+    if (images && Array.isArray(images)) {
+      images.forEach((img: any) => addImage(img.url, img.id));
     }
 
-    // 优先级3：商品缩略图 (product.thumbnail)
+    // 3. Fallback: Product Thumbnail
     if (thumbnail) {
-      return [{ url: thumbnail }];
+      addImage(thumbnail);
     }
 
-    // 优先级4：占位图
-    return [{ url: PLACEHOLDER_IMAGE }];
+    // 4. Final Fallback: Placeholder
+    if (result.length === 0) {
+      return [{ url: PLACEHOLDER_IMAGE }];
+    }
+
+    return result;
   }, [selectedVariant, images, thumbnail]);
 
   // Reset to first image when variant changes, with smooth transition
