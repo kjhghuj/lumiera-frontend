@@ -145,9 +145,20 @@ export default function ArticlePage({ params }: ArticlePageProps) {
     <div className="bg-cream min-h-screen pt-[72px] lg:pt-[88px]">
       {/* 0. READING PROGRESS BAR */}
       <div
-        className="fixed top-[72px] lg:top-[88px] left-0 h-[4px] bg-terracotta z-[60] transition-all duration-100 ease-out"
-        style={{ width: `${readingProgress}%` }}
-      />
+        className="fixed left-0 h-[4px] bg-terracotta z-[60] transition-all duration-100 ease-out"
+        style={{
+          width: `${readingProgress}%`,
+          top: `calc(72px + var(--announcement-height, 0px))`
+        }}
+      >
+        <style jsx>{`
+          @media (min-width: 1024px) {
+            div {
+              top: calc(88px + var(--announcement-height, 0px)) !important;
+            }
+          }
+        `}</style>
+      </div>
 
       {/* 1. ARTICLE HEADER */}
       <header className="max-w-[1000px] mx-auto px-6 lg:px-8 pt-12 lg:pt-24 pb-12 text-center relative z-10">

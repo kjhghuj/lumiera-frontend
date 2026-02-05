@@ -33,8 +33,8 @@ export default function Navbar({ cartCount, onSearchClick, topOffset = 0 }: Navb
       <nav
         style={{ top: `${topOffset}px` }}
         className={`fixed w-full z-40 transition-all duration-300 ${scrolled || isOpen
-            ? "bg-cream/95 backdrop-blur-md shadow-sm py-2"
-            : "bg-transparent py-4"
+          ? "bg-cream/95 backdrop-blur-md shadow-sm py-2"
+          : "bg-transparent py-4"
           }`}
       >
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -128,7 +128,8 @@ export default function Navbar({ cartCount, onSearchClick, topOffset = 0 }: Navb
 
       {/* Mobile Menu Overlay */}
       <div
-        className={`fixed inset-0 z-30 bg-cream pt-24 px-6 transform transition-transform duration-300 ease-in-out lg:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"
+        style={{ paddingTop: `calc(6rem + ${topOffset}px)` }}
+        className={`fixed inset-0 z-30 bg-cream px-6 transform transition-transform duration-300 ease-in-out lg:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"
           }`}
       >
         <div className="flex flex-col space-y-6">

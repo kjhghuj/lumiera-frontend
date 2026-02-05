@@ -28,7 +28,14 @@ export default function LayoutWrapper({ children }: LayoutWrapperProps) {
         onClose={() => setIsSearchOpen(false)}
         regionId={region?.id}
       />
-      <main className="flex-grow transition-[padding]" style={{ paddingTop: `${navOffset}px` }}>
+      <main
+        className="flex-grow transition-[padding]"
+        style={{
+          paddingTop: `${navOffset}px`,
+          // @ts-ignore - Custom CSS variable
+          "--announcement-height": `${navOffset}px`
+        }}
+      >
         {children}
       </main>
       <ChatWidget />
