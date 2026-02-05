@@ -11,27 +11,32 @@ interface ProductPageProps {
   params: Promise<{ handle: string }>;
 }
 
-// Mock data for Product Story section (temporary until backend API is updated)
-const mockStoryData: StorySection[] = [
-  {
-    id: "story-1",
-    title: "Born From a Simple Truth",
-    content:
-      "We believe that intimate wellness should be celebrated, not hidden. Our journey began with a simple observation: why should products designed for pleasure feel clinical or shameful? We set out to create something different—products that marry sophisticated design with uncompromising quality, made from body-safe materials that you can trust.",
-    imageUrl:
-      "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=800&q=80",
-    imageAlt: "Elegant product craftsmanship",
-  },
-  {
-    id: "story-2",
-    title: "Designed for Real Life",
-    content:
-      "Every curve, every texture, every detail has been thoughtfully considered. We worked with leading designers and wellness experts to create products that feel intuitive and luxurious. From the whisper-quiet motors to the premium silicone that warms to your touch, every element is designed to enhance your experience.",
-    imageUrl:
-      "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&q=80",
-    imageAlt: "Premium design details",
-  },
-];
+/**
+ * 安全解析 metadata.story_sections 为 StorySection[]
+ * Medusa 的 metadata 是 unknown 类型，需要安全地类型断言
+ */
+function parseStorySections(metadata: Record<string, unknown> | undefined): StorySection[] {
+  if (!metadata?.story_sections) {
+    return [];
+  }
+
+  try {
+    // 如果已经是数组，直接使用；如果是字符串，尝试解析
+    const sections = Array.isArray(metadata.story_sections)
+      ? metadata.story_sections
+      : JSON.parse(metadata.story_sections as string);
+
+    // 过滤并验证每个 section 的基本字段
+    return sections.filter((section: unknown): section is StorySection => {
+      if (typeof section !== 'object' || section === null) return false;
+      const s = section as Record<string, unknown>;
+      return typeof s.id === 'string' && typeof s.title === 'string';
+    });
+  } catch (e) {
+    console.error('[ProductPage] Failed to parse story_sections:', e);
+    return [];
+  }
+}
 
 // Generate static paths for products
 export async function generateStaticParams() {
@@ -111,8 +116,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const isBestSeller = tags.some(t => t.value?.toLowerCase().includes("best") || t.value?.toLowerCase().includes("popular"));
   const isNew = tags.some(t => t.value?.toLowerCase().includes("new"));
 
-  // TODO: In the future, read story data from product.metadata
-  // const storyData = product.metadata?.story as StorySection[] | undefined;
+  // 从 metadata 中解析产品故事数据
+  const storySections = parseStorySections(product.metadata as Record<string, unknown> | undefined);
 
   return (
     <>
@@ -137,7 +142,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
       </div>
 
       {/* Product Story Section - Full-width with constrained content */}
-      <ProductStory sections={mockStoryData} />
+      <ProductStory sections={storySections} />
     </>
   );
 }

@@ -97,7 +97,7 @@ export async function getProductByHandle(handle: string, regionId?: string) {
       sales_channel_id: SALES_CHANNEL_ID || undefined,
       // Include *variants.images to get variant-specific images for gallery switching
       // Include inventory_quantity to check stock availability
-      fields: "*variants,*variants.calculated_price,*variants.options,*variants.images,*variants.thumbnail,*variants.inventory_quantity,*images,*categories,*tags",
+      fields: "*variants,*variants.calculated_price,*variants.options,*variants.images,*variants.thumbnail,*variants.inventory_quantity,*variants.metadata,*images,*categories,*tags,*metadata",
     });
     return products?.[0] || null;
   } catch (error) {
@@ -111,7 +111,7 @@ export async function getProductById(id: string, regionId?: string) {
     const { product } = await sdk.store.product.retrieve(id, {
       region_id: regionId,
       // Include *variants.images to get variant-specific images
-      fields: "*variants.calculated_price,*variants.options,*variants.images,*variants.inventory_quantity,*images,*categories,*tags",
+      fields: "*variants.calculated_price,*variants.options,*variants.images,*variants.inventory_quantity,*variants.metadata,*images,*categories,*tags,*metadata",
     });
     return product;
   } catch (error) {

@@ -54,7 +54,7 @@ export default function ProductStory({ sections }: ProductStoryProps) {
                     <span className="text-xs uppercase tracking-[0.3em] text-terracotta font-medium">
                         The Story
                     </span>
-                    <h2 className="mt-4 font-serif text-3xl sm:text-4xl lg:text-5xl text-charcoal">
+                    <h2 className="mt-4 font-serif text-3xl sm:text-5xl lg:text-6xl text-charcoal leading-[1.15] tracking-tight">
                         Crafted With Purpose
                     </h2>
                 </div>
@@ -96,17 +96,19 @@ function StorySectionRow({ section, isReversed }: StorySectionRowProps) {
                     className={`absolute inset-0 bg-border/20 transition-opacity duration-700 ${imageLoaded ? "opacity-0" : "opacity-100"
                         }`}
                 />
-                <Image
-                    src={section.imageUrl}
-                    alt={section.imageAlt}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                    className={`object-cover transition-all duration-700 ease-out ${imageLoaded
+                {section.imageUrl ? (
+                    <Image
+                        src={section.imageUrl}
+                        alt={section.imageAlt}
+                        fill
+                        sizes="(max-width: 1024px) 100vw, 50vw"
+                        className={`object-cover transition-all duration-700 ease-out ${imageLoaded
                             ? "opacity-100 scale-100"
                             : "opacity-0 scale-[1.02]"
-                        }`}
-                    onLoad={() => setImageLoaded(true)}
-                />
+                            }`}
+                        onLoad={() => setImageLoaded(true)}
+                    />
+                ) : null}
             </div>
 
             {/* Text Content */}
@@ -114,11 +116,11 @@ function StorySectionRow({ section, isReversed }: StorySectionRowProps) {
                 className={`flex flex-col justify-center ${isReversed ? "lg:order-1 lg:pr-8" : "lg:order-2 lg:pl-8"
                     }`}
             >
-                <h3 className="font-serif text-2xl sm:text-3xl lg:text-4xl text-charcoal leading-tight mb-6">
+                <h3 className="font-serif text-3xl sm:text-4xl lg:text-5xl text-charcoal leading-tight mb-6 tracking-tight">
                     {section.title}
                 </h3>
-                <div className="prose prose-lg max-w-none">
-                    <p className="text-charcoal-light leading-relaxed text-base lg:text-lg">
+                <div className="prose prose-lg max-w-none break-words whitespace-pre-line">
+                    <p className="text-charcoal-light font-light text-lg md:text-xl leading-[1.8]">
                         {section.content}
                     </p>
                 </div>
