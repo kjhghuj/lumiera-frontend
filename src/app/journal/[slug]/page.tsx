@@ -1,29 +1,50 @@
-"use client";
-
+import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import React, { useState, useEffect } from "react";
-import ImageWithFallback from "@/components/ImageWithFallback";
 import Link from "next/link";
-import {
-  Share2,
-  Facebook,
-  Twitter,
-  Link as LinkIcon,
-  ArrowRight,
-} from "lucide-react";
-import { ARTICLES, PRODUCTS } from "@/lib/constants";
-import { Product, Article } from "@/lib/constants";
+import { Share2, Facebook, Twitter, Link as LinkIcon, ArrowRight } from "lucide-react";
+import ImageWithFallback from "@/components/ImageWithFallback";
+import { PRODUCTS, Product } from "@/lib/constants";
+import { getArticleBySlug, getRelatedArticles, Article, ArticleBlock } from "@/lib/cms";
+import ReadingProgressBar from "@/components/journal/ReadingProgressBar";
+import MobileStickyBar from "@/components/journal/MobileStickyBar";
 
 interface ArticlePageProps {
   params: Promise<{ slug: string }>;
 }
 
-// --- SUB-COMPONENTS ---
+// Dynamic SEO Metadata
+export async function generateMetadata({
+  params,
+}: ArticlePageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const article = await getArticleBySlug(slug);
 
-// Compact Sidebar Design
-const StickySidebar: React.FC<{ product: Product | undefined }> = ({
-  product,
-}) => {
+  if (!article) {
+    return { title: "Article Not Found | Lumiera" };
+  }
+
+  return {
+    title: `${article.title} | Lumiera Journal`,
+    description: article.excerpt,
+    openGraph: {
+      title: article.title,
+      description: article.excerpt,
+      images: [{ url: article.image }],
+      type: "article",
+      authors: [article.author || "The Editorial Team"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: article.title,
+      description: article.excerpt,
+      images: [article.image],
+    },
+  };
+}
+
+// --- SUB-COMPONENTS (Server) ---
+
+const StickySidebar = ({ product }: { product: Product | undefined }) => {
   if (!product) return null;
   return (
     <div className="sticky top-32 w-full animate-fade-in-up">
@@ -35,7 +56,6 @@ const StickySidebar: React.FC<{ product: Product | undefined }> = ({
         </div>
 
         <Link href={`/product/${product.id}`} className="group block">
-          {/* Aspect Ratio 4/5 to match main product images, but in a narrower column */}
           <div className="aspect-[4/5] bg-[#F9F8F6] mb-4 overflow-hidden rounded-sm relative">
             <ImageWithFallback
               src={product.images[0]}
@@ -70,7 +90,7 @@ const StickySidebar: React.FC<{ product: Product | undefined }> = ({
   );
 };
 
-const InlineProductBlock: React.FC<{ product: Product }> = ({ product }) => (
+const InlineProductBlock = ({ product }: { product: Product }) => (
   <div className="my-10 bg-[#F9F8F6] p-6 rounded-sm border border-gray-100 lg:hidden shadow-sm">
     <p className="text-xs font-serif italic text-charcoal-light mb-4 border-b border-gray-200 pb-2">
       &quot;We recommend pairing this practice with...&quot;
@@ -102,63 +122,129 @@ const InlineProductBlock: React.FC<{ product: Product }> = ({ product }) => (
   </div>
 );
 
-export default function ArticlePage({ params }: ArticlePageProps) {
-  // Use React.use() to unwrap params if needed, but since it's a Promise in Next.js 15+ we need to await it component-level or use a hook.
-  // However, Next.js generic pages are server components by default, but we marked this 'use client' for scroll effects.
-  // In 'use client' components, passing params as props directly works if the parent passes them resolved, BUT app router passes them as Promise.
-  // A safe pattern in client components is using `use` from React or simply await in a server wrapper.
-  // For simplicity here, we'll assume we need to unwrap it.
-  const resolvedParams = React.use(params);
-  const { slug } = resolvedParams;
+// Content block renderer
+const ContentRenderer = ({
+  content,
+  featuredProduct,
+}: {
+  content: ArticleBlock[];
+  featuredProduct: Product | undefined;
+}) => {
+  return (
+    <>
+      {content.map((block, idx) => {
+        if (block.type === "paragraph") {
+          const isFirst = idx === 0;
+          return (
+            <div
+              key={idx}
+              className={`text-lg md:text-xl font-light leading-[1.8] text-charcoal-light ${isFirst ? "flow-root" : ""
+                }`}
+            >
+              {isFirst && block.text ? (
+                <span className="float-left mr-3 text-6xl font-serif text-terracotta leading-[0.8] pt-2">
+                  {block.text.charAt(0)}
+                </span>
+              ) : null}
+              {isFirst && block.text ? block.text.slice(1) : block.text}
+            </div>
+          );
+        }
 
-  const article = ARTICLES.find((a) => a.slug === slug);
-  const [readingProgress, setReadingProgress] = useState(0);
-  const [showMobileSticky, setShowMobileSticky] = useState(false);
+        if (block.type === "blockquote") {
+          return (
+            <blockquote
+              key={idx}
+              className="my-12 p-8 bg-[#F9F8F6] border-l-4 border-terracotta rounded-r-sm"
+            >
+              <p className="font-serif text-2xl md:text-3xl italic text-charcoal leading-snug">
+                &quot;{block.text}&quot;
+              </p>
+            </blockquote>
+          );
+        }
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const totalScroll = document.documentElement.scrollTop;
-      const windowHeight =
-        document.documentElement.scrollHeight -
-        document.documentElement.clientHeight;
-      if (windowHeight === 0) return;
-      const progress = totalScroll / windowHeight;
-      setReadingProgress(progress * 100);
-      setShowMobileSticky(progress > 0.25);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+        if (block.type === "image" && block.src) {
+          return (
+            <figure key={idx} className="w-full my-8 block">
+              <div className="w-full h-auto min-h-[400px] overflow-hidden rounded-sm shadow-sm relative aspect-[16/9]">
+                <ImageWithFallback
+                  src={block.src}
+                  alt={block.caption || "Article visual"}
+                  fill
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-[1.5s]"
+                />
+              </div>
+              {block.caption && (
+                <figcaption className="text-center text-xs text-gray-400 mt-4 uppercase tracking-wider">
+                  {block.caption}
+                </figcaption>
+              )}
+            </figure>
+          );
+        }
+
+        if (
+          block.type === "inline-product" &&
+          featuredProduct &&
+          featuredProduct.id === block.productId
+        ) {
+          return <InlineProductBlock key={idx} product={featuredProduct} />;
+        }
+
+        // Heading blocks from Strapi
+        if (block.type === "heading") {
+          const className = "font-serif text-2xl md:text-3xl text-charcoal mt-12 mb-6";
+          if (block.level === 1) return <h1 key={idx} className={className}>{block.text}</h1>;
+          if (block.level === 3) return <h3 key={idx} className={className}>{block.text}</h3>;
+          if (block.level === 4) return <h4 key={idx} className={className}>{block.text}</h4>;
+          return <h2 key={idx} className={className}>{block.text}</h2>;
+        }
+
+        // List blocks from Strapi
+        if (block.type === "list" && block.items) {
+          return (
+            <ul
+              key={idx}
+              className="list-disc list-inside space-y-2 text-lg text-charcoal-light font-light ml-4"
+            >
+              {block.items.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          );
+        }
+
+        return null;
+      })}
+    </>
+  );
+};
+
+export default async function ArticlePage({ params }: ArticlePageProps) {
+  const { slug } = await params;
+
+  // Fetch article from Strapi CMS
+  const article = await getArticleBySlug(slug);
 
   if (!article) {
     notFound();
   }
 
+  // Fetch related articles if available
+  const relatedArticles = article.relatedArticleIds
+    ? await getRelatedArticles(article.relatedArticleIds)
+    : [];
+
+  // Find featured product from static products
   const featuredProduct = PRODUCTS.find(
     (p) => p.id === article.featuredProductId
   );
-  const relatedArticles = article.relatedArticleIds
-    ?.map((id) => ARTICLES.find((a) => a.id === id))
-    .filter(Boolean) as Article[];
 
   return (
     <div className="bg-cream min-h-screen pt-[72px] lg:pt-[88px]">
-      {/* 0. READING PROGRESS BAR */}
-      <div
-        className="fixed left-0 h-[4px] bg-terracotta z-[60] transition-all duration-100 ease-out"
-        style={{
-          width: `${readingProgress}%`,
-          top: `calc(72px + var(--announcement-height, 0px))`
-        }}
-      >
-        <style jsx>{`
-          @media (min-width: 1024px) {
-            div {
-              top: calc(88px + var(--announcement-height, 0px)) !important;
-            }
-          }
-        `}</style>
-      </div>
+      {/* 0. READING PROGRESS BAR (Client Component) */}
+      <ReadingProgressBar />
 
       {/* 1. ARTICLE HEADER */}
       <header className="max-w-[1000px] mx-auto px-6 lg:px-8 pt-12 lg:pt-24 pb-12 text-center relative z-10">
@@ -191,7 +277,7 @@ export default function ArticlePage({ params }: ArticlePageProps) {
         <div className="aspect-[3/2] lg:aspect-[21/9] overflow-hidden rounded-sm shadow-sm relative">
           <ImageWithFallback
             src={article.image}
-            alt={article.title}
+            alt={article.imageAlt}
             fill
             className="w-full h-full object-cover"
             priority
@@ -229,64 +315,10 @@ export default function ArticlePage({ params }: ArticlePageProps) {
           {/* Typography Content Wrapper */}
           <div className="font-sans text-charcoal-light space-y-8 flex-1">
             {article.content && article.content.length > 0 ? (
-              article.content.map((block, idx) => {
-                if (block.type === "paragraph") {
-                  const isFirst = idx === 0;
-                  return (
-                    <div
-                      key={idx}
-                      className={`text-lg md:text-xl font-light leading-[1.8] text-charcoal-light ${isFirst ? "flow-root" : ""
-                        }`}
-                    >
-                      {isFirst ? (
-                        <span className="float-left mr-3 text-6xl font-serif text-terracotta leading-[0.8] pt-2">
-                          {block.text.charAt(0)}
-                        </span>
-                      ) : null}
-                      {isFirst ? block.text.slice(1) : block.text}
-                    </div>
-                  );
-                }
-                if (block.type === "blockquote") {
-                  return (
-                    <blockquote
-                      key={idx}
-                      className="my-12 p-8 bg-[#F9F8F6] border-l-4 border-terracotta rounded-r-sm"
-                    >
-                      <p className="font-serif text-2xl md:text-3xl italic text-charcoal leading-snug">
-                        &quot;{block.text}&quot;
-                      </p>
-                    </blockquote>
-                  );
-                }
-                if (block.type === "image") {
-                  return (
-                    <figure key={idx} className="w-full my-8 block">
-                      <div className="w-full h-auto min-h-[400px] overflow-hidden rounded-sm shadow-sm relative aspect-[16/9]">
-                        <ImageWithFallback
-                          src={block.src}
-                          alt="Article visual"
-                          fill
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-[1.5s]"
-                        />
-                      </div>
-                      <figcaption className="text-center text-xs text-gray-400 mt-4 uppercase tracking-wider">
-                        {block.caption}
-                      </figcaption>
-                    </figure>
-                  );
-                }
-                if (
-                  block.type === "inline-product" &&
-                  featuredProduct &&
-                  featuredProduct.id === block.productId
-                ) {
-                  return (
-                    <InlineProductBlock key={idx} product={featuredProduct} />
-                  );
-                }
-                return null;
-              })
+              <ContentRenderer
+                content={article.content}
+                featuredProduct={featuredProduct}
+              />
             ) : (
               <p className="text-lg text-charcoal-light">
                 {article.excerpt} (Full content coming soon)
@@ -336,7 +368,7 @@ export default function ArticlePage({ params }: ArticlePageProps) {
                   <div className="aspect-[16/9] bg-gray-100 mb-6 overflow-hidden rounded-sm relative">
                     <ImageWithFallback
                       src={relArticle.image}
-                      alt={relArticle.title}
+                      alt={relArticle.imageAlt}
                       fill
                       className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
                     />
@@ -357,28 +389,8 @@ export default function ArticlePage({ params }: ArticlePageProps) {
         </section>
       )}
 
-      {/* MOBILE STICKY BOTTOM BAR */}
-      <div
-        className={`fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 z-40 lg:hidden transform transition-transform duration-300 shadow-[0_-5px_10px_rgba(0,0,0,0.02)] ${showMobileSticky ? "translate-y-0" : "translate-y-full"
-          }`}
-      >
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex flex-col">
-            <span className="font-serif text-charcoal text-sm truncate max-w-[180px]">
-              Enjoying this article?
-            </span>
-            <span className="text-[10px] text-terracotta font-bold uppercase tracking-widest">
-              Explore the collection
-            </span>
-          </div>
-          <Link
-            href="/shop"
-            className="bg-charcoal text-white px-6 py-3 text-xs uppercase font-bold tracking-widest rounded-sm shadow-lg whitespace-nowrap"
-          >
-            Shop Now
-          </Link>
-        </div>
-      </div>
+      {/* MOBILE STICKY BOTTOM BAR (Client Component) */}
+      <MobileStickyBar />
     </div>
   );
 }
