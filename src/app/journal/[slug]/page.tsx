@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Share2, Facebook, Twitter, Link as LinkIcon, ArrowRight } from "lucide-react";
 import ImageWithFallback from "@/components/ImageWithFallback";
-import { PRODUCTS, Product } from "@/lib/constants";
+import { getProductById, getRegion } from "@/lib/medusa";
 import { getArticleBySlug, getRelatedArticles, Article, ArticleBlock } from "@/lib/cms";
 import ReadingProgressBar from "@/components/journal/ReadingProgressBar";
 import MobileStickyBar from "@/components/journal/MobileStickyBar";
@@ -44,8 +44,29 @@ export async function generateMetadata({
 
 // --- SUB-COMPONENTS (Server) ---
 
-const StickySidebar = ({ product }: { product: Product | undefined }) => {
+import { StoreProduct } from "@/lib/types";
+import { formatPrice } from "@/lib/medusa";
+
+// ... existing imports ...
+
+// Helper to get price
+const getProductPrice = (product: StoreProduct) => {
+  const price = product.variants?.[0]?.calculated_price?.calculated_amount;
+  return price ? price / 100 : 0;
+};
+
+// Helper to get image
+const getProductImage = (product: StoreProduct) => {
+  return product.thumbnail || product.images?.[0]?.url || "";
+};
+
+const StickySidebar = ({ product }: { product: StoreProduct | null | undefined }) => {
   if (!product) return null;
+
+  const price = getProductPrice(product);
+  const imageUrl = getProductImage(product);
+  const category = product.categories?.[0]?.name || "Wellness";
+
   return (
     <div className="sticky top-32 w-full animate-fade-in-up">
       <div className="bg-white border border-gray-100 p-5 rounded-sm shadow-sm">
@@ -55,11 +76,11 @@ const StickySidebar = ({ product }: { product: Product | undefined }) => {
           </span>
         </div>
 
-        <Link href={`/product/${product.id}`} className="group block">
+        <Link href={`/product/${product.handle}`} className="group block">
           <div className="aspect-[4/5] bg-[#F9F8F6] mb-4 overflow-hidden rounded-sm relative">
             <ImageWithFallback
-              src={product.images[0]}
-              alt={product.name}
+              src={imageUrl}
+              alt={product.title}
               fill
               className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
@@ -68,15 +89,15 @@ const StickySidebar = ({ product }: { product: Product | undefined }) => {
           <div className="flex justify-between items-start mb-4">
             <div>
               <h4 className="font-serif text-lg text-charcoal group-hover:text-terracotta transition-colors leading-tight">
-                {product.name}
+                {product.title}
               </h4>
               <p className="text-[10px] text-gray-400 uppercase tracking-wider mt-1">
-                {product.category}
+                {category}
               </p>
             </div>
             <div className="text-right">
               <p className="text-terracotta font-bold text-sm">
-                €{product.price.toFixed(2)}
+                €{price.toFixed(2)}
               </p>
             </div>
           </div>
@@ -90,37 +111,42 @@ const StickySidebar = ({ product }: { product: Product | undefined }) => {
   );
 };
 
-const InlineProductBlock = ({ product }: { product: Product }) => (
-  <div className="my-10 bg-[#F9F8F6] p-6 rounded-sm border border-gray-100 lg:hidden shadow-sm">
-    <p className="text-xs font-serif italic text-charcoal-light mb-4 border-b border-gray-200 pb-2">
-      &quot;We recommend pairing this practice with...&quot;
-    </p>
-    <div className="flex gap-4">
-      <div className="w-24 h-24 bg-white flex-shrink-0 rounded-sm overflow-hidden border border-gray-100 relative">
-        <ImageWithFallback
-          src={product.images[0]}
-          alt={product.name}
-          fill
-          className="object-cover"
-        />
-      </div>
-      <div className="flex flex-col justify-center flex-1">
-        <h4 className="font-serif text-lg text-charcoal leading-tight mb-1">
-          {product.name}
-        </h4>
-        <p className="text-terracotta text-sm font-bold mb-3">
-          €{product.price.toFixed(2)}
-        </p>
-        <Link
-          href={`/product/${product.id}`}
-          className="inline-block text-[10px] uppercase tracking-widest font-bold text-charcoal border border-charcoal text-center py-2 px-4 hover:bg-charcoal hover:text-white transition-colors"
-        >
-          View Product
-        </Link>
+const InlineProductBlock = ({ product }: { product: StoreProduct }) => {
+  const price = getProductPrice(product);
+  const imageUrl = getProductImage(product);
+
+  return (
+    <div className="my-10 bg-[#F9F8F6] p-6 rounded-sm border border-gray-100 lg:hidden shadow-sm">
+      <p className="text-xs font-serif italic text-charcoal-light mb-4 border-b border-gray-200 pb-2">
+        &quot;We recommend pairing this practice with...&quot;
+      </p>
+      <div className="flex gap-4">
+        <div className="w-24 h-24 bg-white flex-shrink-0 rounded-sm overflow-hidden border border-gray-100 relative">
+          <ImageWithFallback
+            src={imageUrl}
+            alt={product.title}
+            fill
+            className="object-cover"
+          />
+        </div>
+        <div className="flex flex-col justify-center flex-1">
+          <h4 className="font-serif text-lg text-charcoal leading-tight mb-1">
+            {product.title}
+          </h4>
+          <p className="text-terracotta text-sm font-bold mb-3">
+            €{price.toFixed(2)}
+          </p>
+          <Link
+            href={`/product/${product.handle}`}
+            className="inline-block text-[10px] uppercase tracking-widest font-bold text-charcoal border border-charcoal text-center py-2 px-4 hover:bg-charcoal hover:text-white transition-colors"
+          >
+            View Product
+          </Link>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Content block renderer
 const ContentRenderer = ({
@@ -128,7 +154,7 @@ const ContentRenderer = ({
   featuredProduct,
 }: {
   content: ArticleBlock[];
-  featuredProduct: Product | undefined;
+  featuredProduct: StoreProduct | null | undefined;
 }) => {
   return (
     <>
@@ -236,10 +262,21 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     ? await getRelatedArticles(article.relatedArticleIds)
     : [];
 
-  // Find featured product from static products
-  const featuredProduct = PRODUCTS.find(
-    (p) => p.id === article.featuredProductId
-  );
+  // Get default region for context
+  const region = await getRegion("gb");
+  const cleanedProductId = article.featuredProductId?.trim();
+
+  // Find featured product from Medusa
+  const featuredProduct = cleanedProductId
+    ? await getProductById(cleanedProductId, region?.id)
+    : undefined;
+
+  console.log(`[JournalDebug] Loading article: ${article.title}`);
+  console.log(`[JournalDebug] Raw ID: "${article.featuredProductId}"`);
+  console.log(`[JournalDebug] Cleaned ID: "${cleanedProductId}"`);
+  console.log(`[JournalDebug] Region ID: ${region?.id}`);
+  console.log(`[JournalDebug] Product found:`, featuredProduct ? "YES" : "NO");
+  if (featuredProduct) console.log(`[JournalDebug] Product Data: ${featuredProduct.id} - ${featuredProduct.title}`);
 
   return (
     <div className="bg-cream min-h-screen pt-[72px] lg:pt-[88px]">
