@@ -15,6 +15,7 @@ export const metadata: Metadata = {
       "Premium wellness essentials designed for your pleasure and self-discovery.",
     type: "website",
   },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://lumiera.com"),
 };
 
 export default function RootLayout({
@@ -29,6 +30,23 @@ export default function RootLayout({
           <div className="flex flex-col min-h-screen font-sans text-charcoal bg-cream">
             <LayoutWrapper>{children}</LayoutWrapper>
             <ExitIntentPopup />
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{
+                __html: JSON.stringify({
+                  "@context": "https://schema.org",
+                  "@type": "Organization",
+                  name: "Lumiera",
+                  url: process.env.NEXT_PUBLIC_BASE_URL || "https://lumiera.com",
+                  logo: `${process.env.NEXT_PUBLIC_BASE_URL || "https://lumiera.com"}/logo.png`,
+                  sameAs: [
+                    "https://facebook.com/lumiera",
+                    "https://instagram.com/lumiera",
+                    "https://twitter.com/lumiera"
+                  ]
+                }),
+              }}
+            />
           </div>
         </Providers>
       </body>

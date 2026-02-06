@@ -1,3 +1,4 @@
+import { Metadata } from "next";
 import { Suspense } from "react";
 import { getProducts, getCategories, getRegion } from "@/lib/medusa";
 import ShopFilters from "./components/ShopFilters";
@@ -18,6 +19,42 @@ async function getShopData() {
   ]);
 
   return { products, categories, region };
+}
+
+// Dynamic Metadata
+export async function generateMetadata({ searchParams }: ShopPageProps): Promise<Metadata> {
+  const { category } = await searchParams;
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://lumiera.com";
+
+  const title = category
+    ? `Shop ${category.charAt(0).toUpperCase() + category.slice(1)} | Lumiera`
+    : "Shop All Premium Wellness | Lumiera";
+
+  const description = category
+    ? `Explore our premium collection of ${category} products. Designed for intimacy and self-care.`
+    : "Discover our full range of intimate wellness essentials. Premium toys, oils, and accessories.";
+
+  // Canonical URL construction (strip sort params)
+  // If category is present, canonical is /shop?category=xyz
+  // Otherwise canonical is /shop
+  let canonical = `${baseUrl}/shop`;
+  if (category) {
+    canonical += `?category=${category}`;
+  }
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical,
+    },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      url: canonical,
+    },
+  };
 }
 
 export default async function ShopPage({ searchParams }: ShopPageProps) {

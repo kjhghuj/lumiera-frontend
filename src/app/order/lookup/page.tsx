@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -21,7 +21,7 @@ function ArrowRightIcon() {
     );
 }
 
-export default function OrderLookupPage() {
+function OrderLookupContent() {
     const searchParams = useSearchParams();
     const [orderId, setOrderId] = useState("");
     const [email, setEmail] = useState("");
@@ -219,5 +219,13 @@ export default function OrderLookupPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function OrderLookupPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-cream flex items-center justify-center"><div className="w-6 h-6 border-2 border-terracotta border-t-transparent rounded-full animate-spin"></div></div>}>
+            <OrderLookupContent />
+        </Suspense>
     );
 }

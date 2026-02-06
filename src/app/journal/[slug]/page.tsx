@@ -391,6 +391,33 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
       {/* MOBILE STICKY BOTTOM BAR (Client Component) */}
       <MobileStickyBar />
+
+      {/* SEO Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            headline: article.title,
+            image: [article.image],
+            datePublished: article.date ? new Date(article.date).toISOString() : undefined,
+            author: {
+              "@type": "Person",
+              name: article.author || "The Editorial Team",
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "Lumiera",
+              logo: {
+                "@type": "ImageObject",
+                url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://lumiera.com"}/logo.png`,
+              },
+            },
+            description: article.excerpt,
+          }),
+        }}
+      />
     </div>
   );
 }

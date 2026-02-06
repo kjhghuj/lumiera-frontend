@@ -143,6 +143,34 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
       {/* Product Story Section - Full-width with constrained content */}
       <ProductStory sections={storySections} />
+
+      {/* SEO Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Product",
+            name: product.title,
+            description: product.description,
+            image: images.map((img) => img.url),
+            sku: product.variants?.[0]?.sku || product.handle,
+            brand: {
+              "@type": "Brand",
+              name: "Lumiera",
+            },
+            offers: {
+              "@type": "Offer",
+              url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://lumiera.com"}/product/${product.handle}`,
+              priceCurrency: currencyCode,
+              price: price ? price / 100 : undefined,
+              availability: product.variants?.[0]?.inventory_quantity && product.variants[0].inventory_quantity > 0
+                ? "https://schema.org/InStock"
+                : "https://schema.org/OutOfStock",
+            },
+          }),
+        }}
+      />
     </>
   );
 }

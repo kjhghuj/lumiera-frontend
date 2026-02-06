@@ -15,11 +15,15 @@ export interface Article {
   id: number;
   category: string;
   title: string;
+  author?: string;
+  date?: string;
   excerpt: string;
   image: string;
   readTime: string;
   slug: string;
-  content?: string;
+  content?: any[];
+  featuredProductId?: string;
+  relatedArticleIds?: number[];
 }
 
 export interface Testimonial {
