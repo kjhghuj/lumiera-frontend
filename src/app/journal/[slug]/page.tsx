@@ -8,6 +8,9 @@ import { getArticleBySlug, getRelatedArticles, Article, ArticleBlock } from "@/l
 import ReadingProgressBar from "@/components/journal/ReadingProgressBar";
 import MobileStickyBar from "@/components/journal/MobileStickyBar";
 
+// Disable caching for this page (instant Strapi content updates)
+export const dynamic = 'force-dynamic';
+
 interface ArticlePageProps {
   params: Promise<{ slug: string }>;
 }
@@ -351,7 +354,31 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
           {/* Typography Content Wrapper */}
           <div className="font-sans text-charcoal-light space-y-8 flex-1">
-            {article.content && article.content.length > 0 ? (
+            {/* HTML Content from CKEditor */}
+            {article.htmlContent ? (
+              <div
+                className="article-content prose prose-lg max-w-none
+                  [&>p:first-of-type]:first-letter:float-left [&>p:first-of-type]:first-letter:mr-3 
+                  [&>p:first-of-type]:first-letter:text-6xl [&>p:first-of-type]:first-letter:font-serif 
+                  [&>p:first-of-type]:first-letter:text-terracotta [&>p:first-of-type]:first-letter:leading-[0.8] 
+                  [&>p:first-of-type]:first-letter:pt-2
+                  prose-headings:font-serif prose-headings:text-charcoal prose-headings:mt-12 prose-headings:mb-6
+                  prose-h2:text-2xl prose-h2:md:text-3xl
+                  prose-p:text-lg prose-p:md:text-xl prose-p:font-light prose-p:leading-[1.8] prose-p:text-charcoal-light prose-p:mb-8
+                  prose-blockquote:my-12 prose-blockquote:p-8 prose-blockquote:bg-[#F9F8F6] 
+                  prose-blockquote:border-l-4 prose-blockquote:border-terracotta prose-blockquote:rounded-r-sm 
+                  prose-blockquote:not-italic prose-blockquote:text-2xl prose-blockquote:md:text-3xl 
+                  prose-blockquote:font-serif prose-blockquote:italic prose-blockquote:text-charcoal prose-blockquote:leading-snug
+                  prose-img:w-full prose-img:my-8 prose-img:rounded-sm prose-img:shadow-sm
+                  prose-a:text-terracotta prose-a:no-underline hover:prose-a:underline
+                  prose-ul:list-disc prose-ul:list-inside prose-ul:space-y-2 prose-ul:text-lg prose-ul:text-charcoal-light prose-ul:font-light prose-ul:ml-4
+                  prose-ol:list-decimal prose-ol:list-inside prose-ol:space-y-2 prose-ol:text-lg prose-ol:text-charcoal-light prose-ol:font-light prose-ol:ml-4
+                  prose-strong:font-semibold prose-strong:text-charcoal
+                  prose-em:italic"
+                dangerouslySetInnerHTML={{ __html: article.htmlContent }}
+              />
+            ) : article.content && article.content.length > 0 ? (
+              /* Legacy Blocks content */
               <ContentRenderer
                 content={article.content}
                 featuredProduct={featuredProduct}

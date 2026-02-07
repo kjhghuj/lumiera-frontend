@@ -1,8 +1,11 @@
 import { Metadata } from "next";
-import { getArticles, Article } from "@/lib/cms";
+import { getArticles, getFeaturedArticle, Article } from "@/lib/cms";
 import JournalHero from "@/components/journal/JournalHero";
 import JournalContent from "@/components/journal/JournalContent";
 import NewsletterSection from "@/components/journal/NewsletterSection";
+
+// Disable caching for this page (instant Strapi content updates)
+export const dynamic = 'force-dynamic';
 
 // SEO Metadata
 export const metadata: Metadata = {
@@ -19,32 +22,33 @@ export const metadata: Metadata = {
 
 const CATEGORIES = [
   "All Stories",
-  "Sexual Wellness",
-  "Relationship Advice",
-  "Product Guides",
-  "Culture & Art",
+  "Wellness",
+  "Love & Dating",
+  "Guides",
+  "Lifestyle",
 ];
 
-// Focus Article ID - could also be managed via Strapi "featured" field
-const FOCUS_ARTICLE_ID = 4;
-
 export default async function JournalPage() {
-  // Fetch articles from Strapi CMS
-  const articles = await getArticles();
+  // Fetch articles and featured article from Strapi CMS
+  const [articles, featuredArticle] = await Promise.all([
+    getArticles(),
+    getFeaturedArticle(),
+  ]);
 
-  // Find focus article and filter grid articles
-  const focusArticle = articles.find((a: Article) => a.id === FOCUS_ARTICLE_ID);
-  const gridArticles = articles.filter((a: Article) => a.id !== FOCUS_ARTICLE_ID);
+  // Filter out the featured article from the grid (if it exists)
+  const gridArticles = featuredArticle
+    ? articles.filter((a: Article) => a.id !== featuredArticle.id)
+    : articles;
 
   return (
     <div className="bg-cream min-h-screen pt-[72px] lg:pt-[88px]">
-      {/* 1. HERO SECTION */}
-      <JournalHero />
+      {/* 1. HERO SECTION - Now uses featured article from Strapi */}
+      <JournalHero featuredArticle={featuredArticle} />
 
-      {/* 2. FILTER BAR + ARTICLE GRID (shared state) */}
+      {/* 2. FILTER BAR + ARTICLE GRID */}
       <JournalContent
         articles={gridArticles}
-        focusArticle={focusArticle}
+        focusArticle={null}
         categories={CATEGORIES}
       />
 
