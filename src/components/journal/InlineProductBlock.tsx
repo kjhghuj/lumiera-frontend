@@ -8,7 +8,7 @@ const InlineProductBlock = ({ product }: { product: StoreProduct }) => {
     const imageUrl = getProductImage(product);
 
     return (
-        <div className="my-10 bg-[#F9F8F6] p-6 rounded-sm border border-gray-100 shadow-sm not-prose">
+        <div className="my-10 bg-[#F9F8F6] p-6 rounded-sm border border-gray-100 shadow-sm not-prose lg:hidden">
             <p className="!text-xs !font-serif !italic !text-charcoal-light !mb-4 !border-b !border-gray-200 !pb-2 !leading-normal">
                 &quot;We recommend pairing this practice with...&quot;
             </p>

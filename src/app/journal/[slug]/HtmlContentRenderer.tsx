@@ -9,6 +9,18 @@ interface HtmlContentRendererProps {
     featuredProduct: StoreProduct | null | undefined;
 }
 
+// Helper to recursively extract text from a node tree
+const getText = (node: DOMNode): string => {
+    if (node.type === "text") {
+        // @ts-ignore - data exists on Text node
+        return node.data || "";
+    }
+    if (node instanceof Element && node.children) {
+        return node.children.map((child) => getText(child as DOMNode)).join("");
+    }
+    return "";
+};
+
 export default function HtmlContentRenderer({
     content,
     productsMap,
@@ -16,42 +28,21 @@ export default function HtmlContentRenderer({
 }: HtmlContentRendererProps) {
     const options = {
         replace: (domNode: DOMNode) => {
-            // Check if node is a text node
-            if (domNode.type === "text") {
-                const text = domNode.data;
+            // Only replace block-level elements (paragraphs) to avoid <p><div> nesting errors (Hydration mismatch)
+            if (domNode instanceof Element && domNode.name === "p") {
+                const text = getText(domNode).trim();
 
-                // Match [product] OR [product:handle]
-                const match = text.match(/\[product(?::([a-zA-Z0-9-]+))?\]/);
+                // Match [product] OR [product:handle] strictly as the only content
+                const match = text.match(/^\[product(?::([a-zA-Z0-9-]+))?\]$/);
 
                 if (match) {
-                    const handle = match[1]; // Capture group 1 (handle) might be undefined
-
+                    const handle = match[1];
                     if (handle) {
                         const product = productsMap.get(handle);
                         if (product) return <InlineProductBlock product={product} />;
                     } else {
-                        // specific case: [product] -> use featuredProduct
+                        // [product] shortcode -> use featuredProduct
                         if (featuredProduct) return <InlineProductBlock product={featuredProduct} />;
-                    }
-                }
-            }
-
-            // Check if node is an element (like <p>) that solely contains the shortcode
-            if (domNode instanceof Element && domNode.name === 'p') {
-                const children = domNode.children;
-                if (children.length === 1 && children[0].type === 'text') {
-                    const text = children[0].data;
-                    // Match [product] OR [product:handle] allowing whitespace
-                    const match = text.match(/^\s*\[product(?::([a-zA-Z0-9-]+))?\]\s*$/);
-
-                    if (match) {
-                        const handle = match[1];
-                        if (handle) {
-                            const product = productsMap.get(handle);
-                            if (product) return <InlineProductBlock product={product} />;
-                        } else {
-                            if (featuredProduct) return <InlineProductBlock product={featuredProduct} />;
-                        }
                     }
                 }
             }
