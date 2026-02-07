@@ -1,12 +1,15 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Share2, Facebook, Twitter, Link as LinkIcon, ArrowRight } from "lucide-react";
+import { Share2, Facebook, Twitter, Link as LinkIcon } from "lucide-react";
 import ImageWithFallback from "@/components/ImageWithFallback";
-import { getProductById, getRegion } from "@/lib/medusa";
-import { getArticleBySlug, getRelatedArticles, Article, ArticleBlock } from "@/lib/cms";
+import { getProductById, getRegion, getProductByHandle, getProductPrice, getProductImage } from "@/lib/medusa";
+import { getArticleBySlug, getRelatedArticles, ArticleBlock } from "@/lib/cms";
 import ReadingProgressBar from "@/components/journal/ReadingProgressBar";
 import MobileStickyBar from "@/components/journal/MobileStickyBar";
+import { StoreProduct } from "@/lib/types";
+import HtmlContentRenderer from "./HtmlContentRenderer";
+import InlineProductBlock from "@/components/journal/InlineProductBlock";
 
 // Disable caching for this page (instant Strapi content updates)
 export const dynamic = 'force-dynamic';
@@ -46,22 +49,6 @@ export async function generateMetadata({
 }
 
 // --- SUB-COMPONENTS (Server) ---
-
-import { StoreProduct } from "@/lib/types";
-import { formatPrice } from "@/lib/medusa";
-
-// ... existing imports ...
-
-// Helper to get price
-const getProductPrice = (product: StoreProduct) => {
-  const price = product.variants?.[0]?.calculated_price?.calculated_amount;
-  return price ? price / 100 : 0;
-};
-
-// Helper to get image
-const getProductImage = (product: StoreProduct) => {
-  return product.thumbnail || product.images?.[0]?.url || "";
-};
 
 const StickySidebar = ({ product }: { product: StoreProduct | null | undefined }) => {
   if (!product) return null;
@@ -114,44 +101,7 @@ const StickySidebar = ({ product }: { product: StoreProduct | null | undefined }
   );
 };
 
-const InlineProductBlock = ({ product }: { product: StoreProduct }) => {
-  const price = getProductPrice(product);
-  const imageUrl = getProductImage(product);
-
-  return (
-    <div className="my-10 bg-[#F9F8F6] p-6 rounded-sm border border-gray-100 lg:hidden shadow-sm">
-      <p className="text-xs font-serif italic text-charcoal-light mb-4 border-b border-gray-200 pb-2">
-        &quot;We recommend pairing this practice with...&quot;
-      </p>
-      <div className="flex gap-4">
-        <div className="w-24 h-24 bg-white flex-shrink-0 rounded-sm overflow-hidden border border-gray-100 relative">
-          <ImageWithFallback
-            src={imageUrl}
-            alt={product.title}
-            fill
-            className="object-cover"
-          />
-        </div>
-        <div className="flex flex-col justify-center flex-1">
-          <h4 className="font-serif text-lg text-charcoal leading-tight mb-1">
-            {product.title}
-          </h4>
-          <p className="text-terracotta text-sm font-bold mb-3">
-            €{price.toFixed(2)}
-          </p>
-          <Link
-            href={`/product/${product.handle}`}
-            className="inline-block text-[10px] uppercase tracking-widest font-bold text-charcoal border border-charcoal text-center py-2 px-4 hover:bg-charcoal hover:text-white transition-colors"
-          >
-            View Product
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Content block renderer
+// Content block renderer (Legacy Blocks)
 const ContentRenderer = ({
   content,
   featuredProduct,
@@ -250,6 +200,13 @@ const ContentRenderer = ({
   );
 };
 
+// Helper function to extract product handles from shortcodes
+// Matches [product:handle]
+const extractProductHandles = (html: string): string[] => {
+  const matches = html.matchAll(/\[product:([a-zA-Z0-9-]+)\]/g);
+  return Array.from(matches, m => m[1]);
+};
+
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const { slug } = await params;
 
@@ -269,17 +226,28 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   const region = await getRegion("gb");
   const cleanedProductId = article.featuredProductId?.trim();
 
-  // Find featured product from Medusa
+  // Find featured product from Medusa (for legacy blocks or sidebar)
   const featuredProduct = cleanedProductId
     ? await getProductById(cleanedProductId, region?.id)
     : undefined;
 
-  console.log(`[JournalDebug] Loading article: ${article.title}`);
-  console.log(`[JournalDebug] Raw ID: "${article.featuredProductId}"`);
-  console.log(`[JournalDebug] Cleaned ID: "${cleanedProductId}"`);
-  console.log(`[JournalDebug] Region ID: ${region?.id}`);
-  console.log(`[JournalDebug] Product found:`, featuredProduct ? "YES" : "NO");
-  if (featuredProduct) console.log(`[JournalDebug] Product Data: ${featuredProduct.id} - ${featuredProduct.title}`);
+  // Extract and Fetch products for Shortcodes in HtmlContent
+  const shortcodeProductsMap = new Map<string, StoreProduct>();
+  if (article.htmlContent) {
+    const handles = extractProductHandles(article.htmlContent);
+    if (handles.length > 0) {
+      // De-duplicate handles
+      const uniqueHandles = Array.from(new Set(handles));
+
+      // Fetch products in parallel
+      await Promise.all(uniqueHandles.map(async (handle) => {
+        const product = await getProductByHandle(handle, region?.id);
+        if (product) {
+          shortcodeProductsMap.set(handle, product);
+        }
+      }));
+    }
+  }
 
   return (
     <div className="bg-cream min-h-screen pt-[72px] lg:pt-[88px]">
@@ -356,27 +324,13 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           <div className="font-sans text-charcoal-light space-y-8 flex-1">
             {/* HTML Content from CKEditor */}
             {article.htmlContent ? (
-              <div
-                className="article-content prose prose-lg max-w-none
-                  [&>p:first-of-type]:first-letter:float-left [&>p:first-of-type]:first-letter:mr-3 
-                  [&>p:first-of-type]:first-letter:text-6xl [&>p:first-of-type]:first-letter:font-serif 
-                  [&>p:first-of-type]:first-letter:text-terracotta [&>p:first-of-type]:first-letter:leading-[0.8] 
-                  [&>p:first-of-type]:first-letter:pt-2
-                  prose-headings:font-serif prose-headings:text-charcoal prose-headings:mt-12 prose-headings:mb-6
-                  prose-h2:text-2xl prose-h2:md:text-3xl
-                  prose-p:text-lg prose-p:md:text-xl prose-p:font-light prose-p:leading-[1.8] prose-p:text-charcoal-light prose-p:mb-8
-                  prose-blockquote:my-12 prose-blockquote:p-8 prose-blockquote:bg-[#F9F8F6] 
-                  prose-blockquote:border-l-4 prose-blockquote:border-terracotta prose-blockquote:rounded-r-sm 
-                  prose-blockquote:not-italic prose-blockquote:text-2xl prose-blockquote:md:text-3xl 
-                  prose-blockquote:font-serif prose-blockquote:italic prose-blockquote:text-charcoal prose-blockquote:leading-snug
-                  prose-img:w-full prose-img:my-8 prose-img:rounded-sm prose-img:shadow-sm
-                  prose-a:text-terracotta prose-a:no-underline hover:prose-a:underline
-                  prose-ul:list-disc prose-ul:list-inside prose-ul:space-y-2 prose-ul:text-lg prose-ul:text-charcoal-light prose-ul:font-light prose-ul:ml-4
-                  prose-ol:list-decimal prose-ol:list-inside prose-ol:space-y-2 prose-ol:text-lg prose-ol:text-charcoal-light prose-ol:font-light prose-ol:ml-4
-                  prose-strong:font-semibold prose-strong:text-charcoal
-                  prose-em:italic"
-                dangerouslySetInnerHTML={{ __html: article.htmlContent }}
-              />
+              <div className="article-content max-w-none">
+                <HtmlContentRenderer
+                  content={article.htmlContent}
+                  productsMap={shortcodeProductsMap}
+                  featuredProduct={featuredProduct}
+                />
+              </div>
             ) : article.content && article.content.length > 0 ? (
               /* Legacy Blocks content */
               <ContentRenderer

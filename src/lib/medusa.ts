@@ -642,4 +642,15 @@ export async function addShippingMethod(cartId: string, optionId: string) {
   }
 }
 
+// Helper to get price
+export const getProductPrice = (product: any) => {
+  const price = product.variants?.[0]?.calculated_price?.calculated_amount;
+  return price ? price / 100 : 0;
+};
+
+// Helper to get image
+export const getProductImage = (product: any) => {
+  return product.thumbnail || product.images?.[0]?.url || "";
+};
+
 export default sdk;
