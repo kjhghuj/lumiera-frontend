@@ -11,6 +11,7 @@ export default function CartItem({
   onRemove,
   isUpdating,
   regionId,
+  variantImage,
   fallbackImage,
 }: {
   item: StoreCartLineItem;
@@ -19,6 +20,7 @@ export default function CartItem({
   onRemove: () => void;
   isUpdating: boolean;
   regionId?: string;
+  variantImage?: string;
   fallbackImage?: string | null;
 }) {
   const [imageError, setImageError] = useState(false);
@@ -26,56 +28,38 @@ export default function CartItem({
   const [imageLoading, setImageLoading] = useState(true);
 
   /**
-   * Image priority order:
-   * 1. Cart item thumbnail (item.thumbnail)
-   * 2. Variant's product thumbnail/image (item.variant?.product?.thumbnail or images)
-   * 3. Product main image (fetched via API if needed)
+   * Image priority order (matching ProductGallery logic):
+   * 1. Variant-specific image (resolved from product API by variant_id)
+   * 2. Cart item thumbnail (item.thumbnail)
+   * 3. Product fallback image (fetched via API)
    * 4. Placeholder image
    */
   useEffect(() => {
-    async function resolveProductImage() {
-      // Priority 1: Cart item's own thumbnail
-      if (item.thumbnail) {
-        setProductImage(item.thumbnail);
-        setImageLoading(false);
-        return;
-      }
-
-      // Priority 2: Variant's product thumbnail or first image
-      const variant = item.variant as any;
-
-      // Check for specific variant images first (Fix for SKUs showing wrong image)
-      if (variant?.images && variant.images.length > 0) {
-        setProductImage(variant.images[0].url);
-        setImageLoading(false);
-        return;
-      }
-
-      if (variant?.product?.thumbnail) {
-        setProductImage(variant.product.thumbnail);
-        setImageLoading(false);
-        return;
-      }
-      if (variant?.product?.images && variant.product.images.length > 0) {
-        setProductImage(variant.product.images[0].url);
-        setImageLoading(false);
-        return;
-      }
-
-      // Priority 3: Use fallback image passed from parent (batch fetched)
-      if (fallbackImage) {
-        setProductImage(fallbackImage);
-        setImageLoading(false);
-        return;
-      }
-
-      // Priority 4: No image found, will use placeholder
-      setProductImage(null);
+    // Priority 1: Variant-specific image (resolved from product API)
+    if (variantImage) {
+      setProductImage(variantImage);
       setImageLoading(false);
+      return;
     }
 
-    resolveProductImage();
-  }, [item.thumbnail, item.variant, fallbackImage]);
+    // Priority 2: Cart item's own thumbnail
+    if (item.thumbnail) {
+      setProductImage(item.thumbnail);
+      setImageLoading(false);
+      return;
+    }
+
+    // Priority 3: Global fallback (product-level image)
+    if (fallbackImage) {
+      setProductImage(fallbackImage);
+      setImageLoading(false);
+      return;
+    }
+
+    // Priority 4: No image found
+    setProductImage(null);
+    setImageLoading(false);
+  }, [variantImage, item.thumbnail, fallbackImage]);
 
   // Determine final image source with error handling
   const getImageSrc = () => {

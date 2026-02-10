@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { useCart, useRegion } from "@/lib/providers";
-import { getProductsByIds } from "@/lib/medusa";
+import { useCart, useRegion, useAuth } from "@/lib/providers";
+import { applyPromoCode, removePromoCode as removePromoCodeApi } from "@/lib/medusa";
 import { Elements } from "@stripe/react-stripe-js";
 import { stripePromise, productImageCache } from "./components/utils";
 
@@ -16,70 +16,82 @@ import OrderSummary from "./components/OrderSummary";
 
 // Main Cart Page Component
 function CartContent() {
-  const { cart, cartLoading, cartCount, updateItem, removeItem, applyBetterCoupon, removePromoCode } = useCart();
+  const { cart, cartLoading, cartCount, updateItem, removeItem, applyBetterCoupon, removePromoCode, refreshCart: refreshCartFn } = useCart();
   const { region } = useRegion();
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
   const [resolvedImages, setResolvedImages] = useState<Record<string, string>>({});
+  // Map variant_id -> image URL for variant-specific images
+  const [variantImageMap, setVariantImageMap] = useState<Record<string, string>>({});
 
-  // Batch fetch missing product images
+  // Fetch product data with variant images to resolve variant-specific cart images
+  // This replicates ProductGallery logic: variant.images > product.thumbnail > placeholder
   useEffect(() => {
-    async function fetchMissingImages() {
+    async function fetchVariantImages() {
       if (!cart?.items || !region?.id) return;
 
-      const idsToFetch: string[] = [];
-
+      // Collect unique product IDs that need fetching
+      const productIds = new Set<string>();
       cart.items.forEach((item) => {
-        const variant = item.variant as any;
-        const hasItemThumbnail = !!item.thumbnail;
-        const hasVariantImage = variant?.images && variant.images.length > 0;
-        const hasProductThumbnail = !!variant?.product?.thumbnail;
-        const hasProductImage = variant?.product?.images && variant.product.images.length > 0;
-        const hasCache = item.product_id && productImageCache[item.product_id];
-
-        if (!hasItemThumbnail && !hasVariantImage && !hasProductThumbnail && !hasProductImage && !hasCache && item.product_id) {
-          if (!idsToFetch.includes(item.product_id)) {
-            idsToFetch.push(item.product_id);
-          }
+        if (item.variant_id && !variantImageMap[item.variant_id] && item.product_id) {
+          productIds.add(item.product_id);
         }
       });
 
-      if (idsToFetch.length > 0) {
-        try {
-          const products = await getProductsByIds(idsToFetch, region.id);
-          const newResolved: Record<string, string> = {};
+      if (productIds.size === 0) return;
 
-          products.forEach((product: any) => {
-            const imageUrl = product.thumbnail || product.images?.[0]?.url;
-            if (imageUrl && product.id) {
-              productImageCache[product.id] = imageUrl;
-              newResolved[product.id] = imageUrl;
-            }
-          });
+      try {
+        // Use getProductsByIds but with variant images included
+        const { getProductsWithVariantImages } = await import("@/lib/medusa");
+        const products = await getProductsWithVariantImages(Array.from(productIds), region.id);
 
-          if (Object.keys(newResolved).length > 0) {
-            setResolvedImages(prev => ({ ...prev, ...newResolved }));
+        if (!products || products.length === 0) return;
+
+        const newResolvedImages: Record<string, string> = {};
+        const newVariantImages: Record<string, string> = {};
+
+        products.forEach((product: any) => {
+          // Cache product-level fallback image
+          const productImage = product.thumbnail || product.images?.[0]?.url;
+          if (productImage && product.id) {
+            productImageCache[product.id] = productImage;
+            newResolvedImages[product.id] = productImage;
           }
-        } catch (error) {
-          console.error("Failed to batch fetch product images:", error);
-        }
-      } else {
-        // Just sync cache to state for any items that might have been cached previously but not in state
-        const newResolved: Record<string, string> = {};
-        cart.items.forEach(item => {
-          if (item.product_id && productImageCache[item.product_id] && !resolvedImages[item.product_id]) {
-            newResolved[item.product_id] = productImageCache[item.product_id];
+
+          // Build variant_id -> image map
+          // Priority: variant.thumbnail > variant.images[0] (sorted by rank) > product.thumbnail
+          if (product.variants) {
+            product.variants.forEach((variant: any) => {
+              if (!variant.id) return;
+
+              if (variant.thumbnail) {
+                newVariantImages[variant.id] = variant.thumbnail;
+              } else if (variant.images && variant.images.length > 0) {
+                const sorted = [...variant.images].sort((a: any, b: any) => (a.rank ?? 999) - (b.rank ?? 999));
+                newVariantImages[variant.id] = sorted[0].url;
+              } else if (productImage) {
+                newVariantImages[variant.id] = productImage;
+              }
+            });
           }
         });
-        if (Object.keys(newResolved).length > 0) {
-          setResolvedImages(prev => ({ ...prev, ...newResolved }));
+
+        if (Object.keys(newResolvedImages).length > 0) {
+          setResolvedImages(prev => ({ ...prev, ...newResolvedImages }));
         }
+        if (Object.keys(newVariantImages).length > 0) {
+          setVariantImageMap(prev => ({ ...prev, ...newVariantImages }));
+        }
+      } catch (error) {
+        console.error("Failed to fetch variant images:", error);
       }
     }
 
-    fetchMissingImages();
-  }, [cart?.items, region?.id, resolvedImages]);
+    fetchVariantImages();
+  }, [cart?.items, region?.id]);
+
 
   // Auto-apply coupon from URL
   useEffect(() => {
@@ -93,13 +105,72 @@ function CartContent() {
     }
   }, [searchParams, cart, cartLoading, applyBetterCoupon]);
 
+  // Auto-apply best coupon from customer's coupon wallet
+  const autoApplyAttempted = useRef(false);
+  useEffect(() => {
+    async function autoApplyBestCoupon() {
+      // Only run once, when cart is loaded and user is logged in
+      if (autoApplyAttempted.current) return;
+      if (!cart?.id || cartLoading || !user) return;
+
+      const userCoupons: string[] = (user?.metadata?.coupons as string[]) || [];
+      if (userCoupons.length === 0) return;
+
+      // Skip if a coupon is already applied
+      const existingPromotions = cart.promotions || [];
+      if (existingPromotions.length > 0) return;
+
+      autoApplyAttempted.current = true;
+
+      // Try each coupon and find the one giving the highest discount
+      let bestCode: string | null = null;
+      let bestDiscount = 0;
+
+      for (const code of userCoupons) {
+        try {
+          // Apply this coupon
+          const cartAfterApply = await applyPromoCode(cart.id, code);
+          const discountAmount = cartAfterApply?.discount_total || 0;
+
+          if (discountAmount > bestDiscount) {
+            // This coupon is better: remove previous best (if any) first
+            if (bestCode) {
+              // Previous best was already removed below
+            }
+            bestDiscount = discountAmount;
+            bestCode = code;
+          }
+
+          // Remove this coupon so we can try the next one
+          await removePromoCodeApi(cart.id, code);
+        } catch (err) {
+          // Coupon invalid or expired, skip silently
+          console.log(`[AutoCoupon] Code ${code} failed, skipping`);
+        }
+      }
+
+      // Apply the best coupon permanently
+      if (bestCode) {
+        try {
+          await applyPromoCode(cart.id, bestCode);
+          // Refresh the cart context to reflect the applied coupon
+          await refreshCartFn();
+          console.log(`[AutoCoupon] Applied best coupon: ${bestCode} (saves ${bestDiscount})`);
+        } catch (err) {
+          console.error(`[AutoCoupon] Failed to apply best coupon ${bestCode}:`, err);
+        }
+      }
+    }
+
+    autoApplyBestCoupon();
+  }, [cart?.id, cartLoading, user]);
+
   // Auto-reset if cart is completed (fixes "Cart already completed" stuck state)
-  const { refreshCart } = useCart();
   useEffect(() => {
     if (cart && cart.completed_at) {
-      refreshCart();
+      refreshCartFn();
     }
-  }, [cart, refreshCart]);
+  }, [cart, refreshCartFn]);
 
   const currencyCode = cart?.currency_code?.toUpperCase() || region?.currency_code?.toUpperCase() || "GBP";
 
@@ -191,6 +262,7 @@ function CartContent() {
                     onRemove={() => handleRemoveItem(item.id)}
                     isUpdating={updatingItemId === item.id}
                     regionId={region?.id}
+                    variantImage={item.variant_id ? variantImageMap[item.variant_id] : undefined}
                     fallbackImage={item.product_id ? (resolvedImages[item.product_id] || productImageCache[item.product_id]) : null}
                   />
                 ))}

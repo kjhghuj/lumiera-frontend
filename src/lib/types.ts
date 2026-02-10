@@ -3,12 +3,28 @@ import type { HttpTypes } from "@medusajs/types";
 // Re-export Medusa types for convenience
 export type StoreProduct = HttpTypes.StoreProduct;
 export type StoreProductVariant = HttpTypes.StoreProductVariant;
-export type StoreCart = HttpTypes.StoreCart;
-export type StoreCartLineItem = HttpTypes.StoreCartLineItem;
-export type StoreCustomer = HttpTypes.StoreCustomer;
 export type StoreRegion = HttpTypes.StoreRegion;
 export type StoreCollection = HttpTypes.StoreCollection;
 export type StoreProductCategory = HttpTypes.StoreProductCategory;
+export type StoreCustomer = HttpTypes.StoreCustomer;
+
+// Extended types to include custom fields from API
+export interface ExtendedStoreCartLineItem extends HttpTypes.StoreCartLineItem {
+  variant_images?: Array<{
+    id: string;
+    url: string;
+    metadata?: any;
+    rank?: number;
+    product_id?: string;
+  }>;
+  variant_thumbnail?: string | null;
+}
+
+export interface StoreCart extends Omit<HttpTypes.StoreCart, 'items'> {
+  items?: ExtendedStoreCartLineItem[];
+}
+
+export type StoreCartLineItem = ExtendedStoreCartLineItem;
 
 // App-specific types
 export interface Article {

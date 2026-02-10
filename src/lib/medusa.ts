@@ -89,6 +89,26 @@ export async function getProductsByIds(ids: string[], regionId?: string) {
   }
 }
 
+// Fetch products with full variant image data (for cart variant image resolution)
+export async function getProductsWithVariantImages(ids: string[], regionId?: string) {
+  try {
+    if (!ids || ids.length === 0) return [];
+
+    const { products } = await sdk.store.product.list({
+      id: ids,
+      region_id: regionId,
+      sales_channel_id: SALES_CHANNEL_ID || undefined,
+      // Match product detail page pattern: include variant images and thumbnails
+      fields: "*variants,*variants.images,*variants.thumbnail,*images,thumbnail",
+      limit: ids.length,
+    });
+    return products || [];
+  } catch (error) {
+    console.error("Error fetching products with variant images:", error);
+    return [];
+  }
+}
+
 export async function getProductByHandle(handle: string, regionId?: string) {
   try {
     const { products } = await sdk.store.product.list({
@@ -191,11 +211,11 @@ export async function createCart(regionId: string) {
 
 export async function getCart(cartId: string) {
   try {
-    // Retrieve cart with all necessary fields
-    // Try requesting everything to debug
+    // Retrieve cart with standard fields
     const { cart } = await sdk.store.cart.retrieve(cartId, {
       fields: "+items,+items.variant,+items.variant.product,+items.adjustments,+promotions,+region,+total,+subtotal,+item_subtotal,+discount_total,+tax_total,+shipping_total,+item_tax_total,+shipping_methods",
     });
+
     return cart;
   } catch (error: any) {
     // If cart doesn't exist (404) or is invalid (400), return null instead of throwing

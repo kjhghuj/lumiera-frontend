@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/providers";
 
 // Icons
 function CheckIcon() {
@@ -31,6 +32,7 @@ function extractUlid(orderId: string | null): string {
 
 export default function OrderConfirmedPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [orderId, setOrderId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [firstName, setFirstName] = useState<string>("Customer");
@@ -247,8 +249,8 @@ export default function OrderConfirmedPage() {
           </div>
         </div>
 
-        {/* Quick Account Creation - Only if we have email and not successful yet */}
-        {email && !registerSuccess && !isRegistered && (
+        {/* Quick Account Creation - Only if we have email and not successful yet, and not logged in */}
+        {email && !registerSuccess && !isRegistered && !user && (
           <div className="bg-terracotta/5 rounded-2xl p-8 sm:p-10 border border-terracotta/20">
             <div className="flex flex-col md:flex-row gap-8 items-start">
               <div className="md:flex-1">
