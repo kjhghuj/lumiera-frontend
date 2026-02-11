@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Package, Loader2 } from "lucide-react";
+import { Package, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { getProductsWithVariantImages } from "@/lib/medusa";
 import { useRegion } from "@/lib/providers";
 
@@ -33,9 +33,10 @@ interface Order {
   items: OrderItem[];
 }
 
-export function OrdersContent() {
+export function OrdersContent({ user }: { user: any }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const { region } = useRegion();
   // Map variant_id -> image URL for variant-specific images
   const [variantImageMap, setVariantImageMap] = useState<Record<string, string>>({});
@@ -121,6 +122,18 @@ export function OrdersContent() {
     }
   };
 
+  const toggleOrder = (orderId: string) => {
+    setExpandedOrders(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) {
+        next.delete(orderId);
+      } else {
+        next.add(orderId);
+      }
+      return next;
+    });
+  };
+
   // Get the best image for an order item
   const getItemImage = (item: OrderItem): string | undefined => {
     // Priority 1: Variant-specific image (resolved from product API)
@@ -129,6 +142,14 @@ export function OrdersContent() {
     }
     // Priority 2: Item thumbnail (product-level)
     return item.thumbnail;
+  };
+
+  // Get preview images for the order card (up to 3)
+  const getOrderPreviewImages = (order: Order) => {
+    return order.items.slice(0, 3).map(item => ({
+      src: getItemImage(item),
+      alt: item.title
+    }));
   };
 
   const getStatusColor = (status: string) => {
@@ -158,8 +179,8 @@ export function OrdersContent() {
   };
 
   return (
-    <div className="bg-white p-8 border border-gray-100">
-      <h2 className="font-serif text-2xl text-charcoal mb-6">Order History</h2>
+    <div className="bg-white rounded-lg p-6 md:p-8 border border-gray-100 min-h-[400px]">
+      <h2 className="font-serif text-xl md:text-2xl text-charcoal mb-6">Order History</h2>
 
       {loadingOrders ? (
         <div className="flex items-center justify-center py-12">
@@ -178,44 +199,97 @@ export function OrdersContent() {
         </div>
       ) : (
         <div className="space-y-4">
-          {orders.map((order) => (
-            <div key={order.id} className="border border-gray-100 p-6 hover:border-gray-200 transition-colors">
-              <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
-                <div>
-                  <p className="font-medium text-charcoal">Order #{order.display_id}</p>
-                  <p className="text-sm text-charcoal-light">{formatDate(order.created_at)}</p>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className={`px-3 py-1 text-xs font-medium uppercase tracking-wider ${getStatusColor(order.fulfillment_status || order.status)}`}>
-                    {order.fulfillment_status || order.status}
-                  </span>
-                  <span className="font-medium text-charcoal">{formatPrice(order.total, order.currency_code)}</span>
-                </div>
-              </div>
+          {orders.map((order) => {
+            const isExpanded = expandedOrders.has(order.id);
+            const previewImages = getOrderPreviewImages(order);
+            const itemCount = order.items.reduce((acc, item) => acc + item.quantity, 0);
 
-              {order.items && order.items.length > 0 && (
-                <div className="space-y-3">
-                  {order.items.map((item) => {
-                    const imageSrc = getItemImage(item);
-                    return (
-                      <div key={item.id} className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-gray-100 flex-shrink-0">
-                          {imageSrc && (
-                            <img src={imageSrc} alt={item.title} className="w-full h-full object-cover" />
-                          )}
+            return (
+              <div key={order.id} className="border border-gray-100 rounded-xl overflow-hidden hover:border-gray-300 transition-colors">
+                {/* Order Summary Header (Clickable) */}
+                <div
+                  onClick={() => toggleOrder(order.id)}
+                  className="bg-gray-50/50 p-4 cursor-pointer flex items-center justify-between gap-4"
+                >
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    {/* Preview Image (First Item) */}
+                    <div className="w-16 h-16 bg-white rounded-lg border border-gray-200 flex-shrink-0 overflow-hidden relative">
+                      {previewImages[0]?.src ? (
+                        <img src={previewImages[0].src} alt={previewImages[0].alt} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                          <Package size={20} />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-charcoal truncate">{item.title}</p>
-                          <p className="text-xs text-charcoal-light">{item.variant_title} × {item.quantity}</p>
+                      )}
+                      {order.items.length > 1 && (
+                        <div className="absolute bottom-0 right-0 bg-charcoal/80 text-white text-[9px] px-1.5 py-0.5 rounded-tl-md">
+                          +{order.items.length - 1}
                         </div>
-                        <p className="text-sm text-charcoal">{formatPrice(item.unit_price)}</p>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-charcoal text-xs uppercase">Order: {order.id.replace("order_", "").slice(0, 10)}...</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(order.fulfillment_status || order.status)}`}>
+                          {order.fulfillment_status || order.status}
+                        </span>
                       </div>
-                    );
-                  })}
+                      <div className="flex gap-3 text-xs text-charcoal-light">
+                        <span>{formatDate(order.created_at)}</span>
+                        <span>•</span>
+                        <span>{itemCount} {itemCount === 1 ? 'item' : 'items'}</span>
+                        <span>•</span>
+                        <span className="font-medium text-charcoal">{formatPrice(order.total, order.currency_code)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-charcoal-light">
+                    {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Expanded Details */}
+                {isExpanded && order.items && order.items.length > 0 && (
+                  <div className="border-t border-gray-100 p-4 bg-white animate-accordion-down">
+                    <div className="space-y-4">
+                      {order.items.map((item) => {
+                        const imageSrc = getItemImage(item);
+                        return (
+                          <div key={item.id} className="flex items-start gap-4">
+                            <div className="w-12 h-12 bg-gray-50 rounded border border-gray-100 flex-shrink-0 overflow-hidden">
+                              {imageSrc && (
+                                <img src={imageSrc} alt={item.title} className="w-full h-full object-cover" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-charcoal truncate">{item.title}</p>
+                              <p className="text-xs text-charcoal-light mb-1">{item.variant_title}</p>
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="text-charcoal-light">Qty: {item.quantity}</span>
+                                <span className="font-medium text-charcoal">{formatPrice(item.unit_price, order.currency_code)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                      <Link href={`/order/lookup?order=${order.id}&email=${encodeURIComponent((user as any)?.email)}`} className="text-xs font-bold uppercase tracking-widest text-terracotta hover:text-terracotta-dark">
+                        View Full Details
+                      </Link>
+                      <div className="text-right">
+                        <span className="text-xs text-charcoal-light">Total: </span>
+                        <span className="font-serif text-lg font-bold text-charcoal">{formatPrice(order.total, order.currency_code)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

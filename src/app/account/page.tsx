@@ -66,7 +66,7 @@ function AccountContent() {
           {/* Content */}
           <div className="md:col-span-3">
             {activeTab === "profile" && <ProfileContent user={user} />}
-            {activeTab === "orders" && <OrdersContent />}
+            {activeTab === "orders" && <OrdersContent user={user} />}
             {activeTab === "addresses" && <AddressesContent />}
             {activeTab === "coupons" && <CouponsContent user={user} />}
           </div>
