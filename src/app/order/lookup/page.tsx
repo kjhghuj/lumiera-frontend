@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { getProductsWithVariantImages } from "@/lib/medusa";
 
 // Icons
 function SearchIcon() {
@@ -28,6 +29,59 @@ function OrderLookupContent() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [orderData, setOrderData] = useState<any | null>(null);
+    const [variantImageMap, setVariantImageMap] = useState<Record<string, string>>({});
+
+    // Resolve variant images once order is loaded
+    useEffect(() => {
+        async function resolveVariantImages() {
+            if (!orderData || !orderData.items) return;
+
+            // Collect unique product IDs from order items with variants
+            const productIds = new Set<string>();
+            orderData.items.forEach((item: any) => {
+                if (item.variant_id && item.product_id && !variantImageMap[item.variant_id]) {
+                    productIds.add(item.product_id);
+                }
+            });
+
+            if (productIds.size === 0) return;
+
+            try {
+                // Use undefined for region_id since we check order items directly
+                const products = await getProductsWithVariantImages(Array.from(productIds), orderData.region_id);
+                if (!products || products.length === 0) return;
+
+                const newVariantImages: Record<string, string> = {};
+
+                products.forEach((product: any) => {
+                    const productImage = product.thumbnail || product.images?.[0]?.url;
+
+                    if (product.variants) {
+                        product.variants.forEach((variant: any) => {
+                            if (!variant.id) return;
+
+                            if (variant.thumbnail) {
+                                newVariantImages[variant.id] = variant.thumbnail;
+                            } else if (variant.images && variant.images.length > 0) {
+                                const sorted = [...variant.images].sort((a: any, b: any) => (a.rank ?? 999) - (b.rank ?? 999));
+                                newVariantImages[variant.id] = sorted[0].url;
+                            } else if (productImage) {
+                                newVariantImages[variant.id] = productImage;
+                            }
+                        });
+                    }
+                });
+
+                if (Object.keys(newVariantImages).length > 0) {
+                    setVariantImageMap(prev => ({ ...prev, ...newVariantImages }));
+                }
+            } catch (error) {
+                console.error("Failed to fetch variant images:", error);
+            }
+        }
+
+        resolveVariantImages();
+    }, [orderData]);
 
     const lookupOrder = async (id: string, mail: string) => {
         if (!id || !mail) {
@@ -43,7 +97,8 @@ function OrderLookupContent() {
             // Prepend order_ prefix if not already present
             const fullOrderId = id.startsWith('order_') ? id : `order_${id}`;
 
-            const response = await fetch(`/api/medusa/store/orders/${fullOrderId}`, {
+            // Request fields needed for variant image resolution
+            const response = await fetch(`/api/medusa/store/orders/${fullOrderId}?fields=+items.variant_id,+items.product_id`, {
                 headers: {
                     'x-publishable-api-key': process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || '',
                 }
@@ -183,10 +238,12 @@ function OrderLookupContent() {
                                 <div key={item.id} className="flex justify-between items-center text-sm">
                                     <div className="flex items-center gap-3">
                                         <div className="w-12 h-12 bg-gray-50 rounded flex-shrink-0 relative overflow-hidden">
-                                            {/* Ideally display image here using item.thumbnail */}
-                                            {item.thumbnail && (
+                                            {/* Display resolved variant image or fallback to thumbnail */}
+                                            {(item.variant_id && variantImageMap[item.variant_id]) ? (
+                                                <img src={variantImageMap[item.variant_id]} alt={item.title} className="w-full h-full object-cover" />
+                                            ) : item.thumbnail ? (
                                                 <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover" />
-                                            )}
+                                            ) : null}
                                         </div>
                                         <div>
                                             <p className="font-medium text-charcoal">{item.title}</p>
