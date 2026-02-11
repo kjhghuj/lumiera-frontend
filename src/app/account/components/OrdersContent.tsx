@@ -30,6 +30,7 @@ interface Order {
   payment_status: string;
   total: number;
   currency_code: string;
+  email: string;
   items: OrderItem[];
 }
 
@@ -104,7 +105,7 @@ export function OrdersContent({ user }: { user: any }) {
     setLoadingOrders(true);
     try {
       // Request variant_id and product_id fields for variant image resolution
-      const response = await fetch(`${BACKEND_URL}/store/orders?fields=+items.variant_id,+items.product_id`, {
+      const response = await fetch(`${BACKEND_URL}/store/orders?fields=+items.variant_id,+items.product_id,+email`, {
         headers: {
           "x-publishable-api-key": API_KEY,
           "Authorization": `Bearer ${token}`,
@@ -277,7 +278,7 @@ export function OrdersContent({ user }: { user: any }) {
                     </div>
 
                     <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
-                      <Link href={`/order/lookup?order=${order.id}&email=${encodeURIComponent((user as any)?.email)}`} className="text-xs font-bold uppercase tracking-widest text-terracotta hover:text-terracotta-dark">
+                      <Link href={`/order/lookup?order=${order.id}&email=${encodeURIComponent(order.email || user?.email)}`} className="text-xs font-bold uppercase tracking-widest text-terracotta hover:text-terracotta-dark">
                         View Full Details
                       </Link>
                       <div className="text-right">
